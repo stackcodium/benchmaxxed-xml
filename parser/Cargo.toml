@@ -1,0 +1,23 @@
+[package]
+name = "xml-parser"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+description = "Dependency-free safe-Rust XML parsing, compact DOM, mutable DOM, and XPath"
+readme = "README.md"
+documentation = "https://docs.rs/xml-parser"
+keywords = ["xml", "parser", "dom", "xpath", "serialization"]
+categories = ["parser-implementations", "data-structures", "encoding"]
+
+[lib]
+name = "xml_parser"
+path = "src/lib.rs"
+
+[dependencies]
+
+[workspace]
+
+[profile.release]
+lto = "fat"
+codegen-units = 1

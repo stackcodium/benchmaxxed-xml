@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>benchmaxxed XML walk vs pugixml minimal walk vs quick-xml event walk vs Bun XML.parse ordered walk vs PHP libxml2 compact walk vs Python libxml2 compact walk</title>
+<style>
+:root {
+  --paper: #f2e8d2;
+  --ink: #111111;
+  --panel: #211f2b;
+  --panel2: #302b39;
+  --line: #111111;
+  --cream: #fff8e8;
+  --muted: #70675b;
+  --bun: #ef5a4f;
+  --serde: #4f7de8;
+  --bunjs: #f2c94c;
+  --php: #777bb4;
+  --bench: #20ba74;
+  --gold: #efb342;
+  --violet: #8b5cf6;
+  --coral: #e76f51;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    linear-gradient(90deg, rgba(17, 17, 17, 0.07) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(17, 17, 17, 0.07) 1px, transparent 1px),
+    var(--paper);
+  background-size: 12px 12px;
+  font-family: "Courier New", Courier, monospace;
+  letter-spacing: 0;
+}
+main { width: min(1080px, calc(100vw - 24px)); margin: 0 auto; padding: 12px 0 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; font-size: 13px; font-weight: 700; }
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  background: var(--cream);
+  border: 3px solid var(--line);
+  box-shadow: 3px 3px 0 #000;
+}
+.swatch { width: 18px; height: 18px; background: var(--bench); border: 2px solid var(--line); }
+.swatch.bun { background: var(--bun); }
+.swatch.serde { background: var(--serde); }
+.swatch.bunjs { background: var(--bunjs); }
+.swatch.php { background: var(--php); }
+.swatch.gold { background: var(--gold); }
+.swatch.violet { background: var(--violet); }
+.swatch.coral { background: var(--coral); }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card.wide { grid-column: 1 / -1; }
+.card {
+  padding: 14px;
+  background: var(--cream);
+  border: 4px solid var(--line);
+  box-shadow: 6px 6px 0 #000;
+}
+.card.dark { color: var(--cream); background: var(--panel); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; line-height: 1.1; text-transform: uppercase; }
+.icon { display: inline-block; width: 18px; text-align: center; }
+.hint { color: var(--muted); font-size: 12px; text-align: right; white-space: nowrap; }
+.dark .hint { color: #cbbfa8; }
+.plot { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: end; min-height: 286px; }
+.plot.single .plot-area { grid-template-columns: 1fr; }
+.yaxis {
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.dark .yaxis { color: #cbbfa8; }
+.plot-area {
+  height: 240px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: end;
+  padding: 10px 12px 0;
+  background:
+    linear-gradient(0deg, rgba(17, 17, 17, 0.13) 3px, transparent 3px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.08) 1px, transparent 1px),
+    #e6dac2;
+  background-size: 100% 48px, 12px 100%;
+  border: 4px solid var(--line);
+  border-bottom-width: 5px;
+}
+.dark .plot-area {
+  background:
+    linear-gradient(0deg, rgba(255, 248, 232, 0.16) 3px, transparent 3px),
+    linear-gradient(90deg, rgba(255, 248, 232, 0.08) 1px, transparent 1px),
+    var(--panel2);
+}
+.group {
+  height: 100%;
+  display: grid;
+  gap: 8px;
+  justify-content: center;
+  align-items: end;
+  position: relative;
+}
+.metric-group { max-width: 230px; margin: 0 auto; }
+.bar {
+  position: relative;
+  min-height: 4px;
+  background: var(--bench);
+  border: 3px solid var(--line);
+  box-shadow: inset 0 -7px 0 rgba(0, 0, 0, 0.18);
+}
+.bar.bun { background: var(--bun); }
+.bar.serde { background: var(--serde); }
+.bar.bunjs { background: var(--bunjs); }
+.bar.php { background: var(--php); }
+.bar.gold { background: var(--gold); }
+.bar.violet { background: var(--violet); }
+.bar.coral { background: var(--coral); }
+.bar-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
+  padding: 5px 3px;
+  color: var(--cream);
+  background: var(--ink);
+  border: 2px solid var(--line);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  white-space: normal;
+}
+.xlabels {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+.single .xlabels { grid-template-columns: 1fr; }
+.note {
+  margin-top: 16px;
+  padding: 9px 10px;
+  color: #403a34;
+  background: rgba(255, 248, 232, 0.82);
+  border: 3px solid var(--line);
+  box-shadow: 4px 4px 0 #000;
+  font-size: 12px;
+  line-height: 1.35;
+}
+@media (max-width: 860px) { .charts { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .plot { grid-template-columns: 52px 1fr; }
+  .plot-area { gap: 12px; padding-left: 8px; padding-right: 8px; }
+  .group { gap: 6px; }
+  .bar-label { font-size: 10px; }
+}
+</style>
+</head>
+<body>
+<main>
+<div class="legend" aria-label="Legend"><span><i class="swatch bench"></i>benchmaxxed XML walk</span><span><i class="swatch gold"></i>pugixml minimal walk</span><span><i class="swatch serde"></i>quick-xml event walk</span><span><i class="swatch violet"></i>Bun XML.parse ordered walk</span><span><i class="swatch php"></i>PHP libxml2 compact walk</span><span><i class="swatch coral"></i>Python libxml2 compact walk</span></div>
+<section class="charts">
+<article class="card wide" aria-label="Throughput chart">
+<div class="card-head">
+<h2><span class="icon">⚡</span> Throughput</h2>
+<span class="hint">MB/sec · higher better</span></div>
+<div class="plot">
+<div class="yaxis"><span>1.72k</span><span>1.29k</span><span>861</span><span>431</span><span>0.0</span></div>
+<div class="plot-area">
+<div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:96.2%"><span class="bar-label">1.66k</span></div>
+<div class="bar gold" style="height:57.2%"><span class="bar-label">985</span></div>
+<div class="bar serde" style="height:36.4%"><span class="bar-label">626</span></div>
+<div class="bar violet" style="height:8.4%"><span class="bar-label">145</span></div>
+<div class="bar php" style="height:6.6%"><span class="bar-label">114</span></div>
+<div class="bar coral" style="height:3.5%"><span class="bar-label">60.9</span></div>
+</div>
+<div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:66.9%"><span class="bar-label">1.15k</span></div>
+<div class="bar gold" style="height:43.6%"><span class="bar-label">751</span></div>
+<div class="bar serde" style="height:30.4%"><span class="bar-label">523</span></div>
+<div class="bar violet" style="height:8.4%"><span class="bar-label">145</span></div>
+<div class="bar php" style="height:4.8%"><span class="bar-label">83.5</span></div>
+<div class="bar coral" style="height:2.9%"><span class="bar-label">49.6</span></div>
+</div>
+<div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:86.3%"><span class="bar-label">1.49k</span></div>
+<div class="bar gold" style="height:52.3%"><span class="bar-label">900</span></div>
+<div class="bar serde" style="height:32.7%"><span class="bar-label">564</span></div>
+<div class="bar violet" style="height:7.4%"><span class="bar-label">128</span></div>
+<div class="bar php" style="height:5.0%"><span class="bar-label">86.2</span></div>
+<div class="bar coral" style="height:3.2%"><span class="bar-label">54.6</span></div>
+</div>
+</div>
+<div class="xlabels"><span>CANADA</span><span>TWITTER</span><span>CITM</span></div>
+</div></article><article class="card wide" aria-label="Best Time chart">
+<div class="card-head">
+<h2><span class="icon">⏱</span> Best Time</h2>
+<span class="hint">microseconds · lower better</span></div>
+<div class="plot">
+<div class="yaxis"><span>350.39k</span><span>262.80k</span><span>175.20k</span><span>87.60k</span><span>0</span></div>
+<div class="plot-area">
+<div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:3.5%"><span class="bar-label">12.39k</span></div>
+<div class="bar gold" style="height:6.0%"><span class="bar-label">20.85k</span></div>
+<div class="bar serde" style="height:9.4%"><span class="bar-label">32.78k</span></div>
+<div class="bar violet" style="height:40.4%"><span class="bar-label">141.44k</span></div>
+<div class="bar php" style="height:51.5%"><span class="bar-label">180.34k</span></div>
+<div class="bar coral" style="height:96.2%"><span class="bar-label">336.92k</span></div>
+</div>
+<div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:1.0%"><span class="bar-label">1.42k</span></div>
+<div class="bar gold" style="height:1.0%"><span class="bar-label">2.18k</span></div>
+<div class="bar serde" style="height:1.0%"><span class="bar-label">3.13k</span></div>
+<div class="bar violet" style="height:3.2%"><span class="bar-label">11.27k</span></div>
+<div class="bar php" style="height:5.6%"><span class="bar-label">19.63k</span></div>
+<div class="bar coral" style="height:9.4%"><span class="bar-label">33.02k</span></div>
+</div>
+<div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:1.0%"><span class="bar-label">3.14k</span></div>
+<div class="bar gold" style="height:1.5%"><span class="bar-label">5.19k</span></div>
+<div class="bar serde" style="height:2.4%"><span class="bar-label">8.29k</span></div>
+<div class="bar violet" style="height:10.4%"><span class="bar-label">36.47k</span></div>
+<div class="bar php" style="height:15.5%"><span class="bar-label">54.18k</span></div>
+<div class="bar coral" style="height:24.4%"><span class="bar-label">85.57k</span></div>
+</div>
+</div>
+<div class="xlabels"><span>CANADA</span><span>TWITTER</span><span>CITM</span></div>
+</div></article><article class="card dark" aria-label="CPU chart">
+<div class="card-head">
+<h2><span class="icon">▣</span> CPU</h2>
+<span class="hint">whole benchmark command</span></div>
+<div class="plot single">
+<div class="yaxis"><span>136</span><span>102</span><span>68.0</span><span>34.0</span><span>0.0</span></div>
+<div class="plot-area">
+<div class="group metric-group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:72.8%"><span class="bar-label">99.0%</span></div>
+<div class="bar gold" style="height:72.8%"><span class="bar-label">99.0%</span></div>
+<div class="bar serde" style="height:72.8%"><span class="bar-label">99.0%</span></div>
+<div class="bar violet" style="height:92.6%"><span class="bar-label">126%</span></div>
+<div class="bar php" style="height:72.8%"><span class="bar-label">99.0%</span></div>
+<div class="bar coral" style="height:72.8%"><span class="bar-label">99.0%</span></div>
+</div></div>
+<div class="xlabels"><span>CANADA + TWITTER + CITM</span></div>
+</div></article><article class="card dark" aria-label="RSS chart">
+<div class="card-head">
+<h2><span class="icon">▥</span> RSS</h2>
+<span class="hint">MB · lower better</span></div>
+<div class="plot single">
+<div class="yaxis"><span>1.17k</span><span>880</span><span>586</span><span>293</span><span>0.0</span></div>
+<div class="plot-area">
+<div class="group metric-group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
+<div class="bar bench" style="height:2.9%"><span class="bar-label">34.6</span></div>
+<div class="bar gold" style="height:4.3%"><span class="bar-label">49.9</span></div>
+<div class="bar serde" style="height:1.9%"><span class="bar-label">22.5</span></div>
+<div class="bar violet" style="height:92.6%"><span class="bar-label">1.09k</span></div>
+<div class="bar php" style="height:11.5%"><span class="bar-label">135</span></div>
+<div class="bar coral" style="height:11.4%"><span class="bar-label">133</span></div>
+</div></div>
+<div class="xlabels"><span>CANADA + TWITTER + CITM</span></div>
+</div></article></section>
+<p class="note">System: Ubuntu · AMD Ryzen 5 5600X 6-Core Processor · 31 GiB RAM · CPU/RSS measured with /usr/bin/time -v over separate full three-file parser-only benchmark commands. XML throughput includes parse + complete walk; Benchmaxxed uses its trusted compact view; pugixml uses minimal mode; quick-xml uses borrowed events; Bun uses XML.parse({ compact: false }); PHP uses libxml2 through FFI in compact mode; Python uses libxml2 through ctypes in compact mode.</p>
+</main>
+</body>
+</html>
