@@ -148,11 +148,11 @@ def main() -> None:
         },
         "tools": {
             "bun": command(args.bun_bin, "--revision"),
-            "php": command(args.php_bin, "-r", "echo PHP_VERSION;"),
-            "python": command(args.python_bin, "-c", "import platform; print(platform.python_version())"),
             "rustc": command("rustc", "--version"),
             "cargo": command("cargo", "--version"),
             "cxx": command("c++", "--version"),
+            "php": command(args.php_bin, "-r", "echo PHP_VERSION;"),
+            "python": command(args.python_bin, "--version"),
             "gnu_time": command("/usr/bin/time", "--version"),
         },
         "benchmark": {

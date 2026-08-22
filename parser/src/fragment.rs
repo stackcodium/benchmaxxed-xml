@@ -1,8 +1,8 @@
 use std::{ops::Range, str::FromStr};
 
 use crate::{
-    parse_compact_document_tolerant_with_config, parse_compact_document_with_config, ParserConfig,
-    XmlElement, XmlError, XmlErrorKind, XmlMemoryRetention, XmlNode, XmlParseOutcome, XmlResult,
+    ParserConfig, XmlElement, XmlError, XmlErrorKind, XmlMemoryRetention, XmlNode, XmlParseOutcome,
+    XmlResult, parse_compact_document_tolerant_with_config, parse_compact_document_with_config,
 };
 
 const FRAGMENT_WRAPPER_STEM: &str = "xml-fragment-";
@@ -168,8 +168,8 @@ impl XmlElement {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parse_fragment, parse_fragment_tolerant, parse_fragment_with_config, ParserConfig,
-        XmlElement, XmlMemoryRetention, XmlNode,
+        ParserConfig, XmlElement, XmlMemoryRetention, XmlNode, parse_fragment,
+        parse_fragment_tolerant, parse_fragment_with_config,
     };
 
     #[test]

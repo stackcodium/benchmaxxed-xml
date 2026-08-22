@@ -408,6 +408,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[cfg_attr(debug_assertions, allow(dead_code))]
     pub(super) fn skip_cdata_count(&mut self) -> XmlResult<bool> {
         Ok(self.skip_cdata_range()?.is_some())
     }

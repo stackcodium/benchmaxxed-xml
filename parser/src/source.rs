@@ -240,7 +240,7 @@ impl XmlSourceOffsetsBuilder {
 mod tests {
     use std::mem::size_of;
 
-    use crate::{parse_document_view_with_source_offsets, RawXmlAttribute, RawXmlNode};
+    use crate::{RawXmlAttribute, RawXmlNode, parse_document_view_with_source_offsets};
 
     #[test]
     fn borrowed_offsets_align_without_growing_compact_records() {

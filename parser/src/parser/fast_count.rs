@@ -1,5 +1,8 @@
 use super::*;
 
+// Release retains this tuned recursive path. Debug entry points use the stack-safe general
+// counter, so these helpers are intentionally dormant in that profile.
+#[cfg_attr(debug_assertions, allow(dead_code))]
 impl<'a> Parser<'a> {
     pub(super) fn is_compact_trusted_xml10(&self) -> bool {
         self.version == XmlVersion::Xml10

@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::sync::{
-    atomic::{AtomicU32, AtomicUsize, Ordering},
     Mutex, OnceLock,
+    atomic::{AtomicU32, AtomicUsize, Ordering},
 };
 
 const MAX_RECURSIVE_CLONE_EQ_DEPTH: usize = 64;
@@ -365,11 +365,14 @@ pub struct XmlElement {
 impl Drop for XmlElement {
     fn drop(&mut self) {
         let children = std::mem::take(&mut self.children);
-        if let Some(_guard) = RecursiveDropGuard::enter() {
-            drop(children);
-        } else {
-            let mut pending = children;
-            drop_pending_xml_nodes(&mut pending);
+        match RecursiveDropGuard::enter() {
+            Some(_guard) => {
+                drop(children);
+            }
+            _ => {
+                let mut pending = children;
+                drop_pending_xml_nodes(&mut pending);
+            }
         }
     }
 }
@@ -579,50 +582,49 @@ fn drop_pending_xml_nodes(pending: &mut Vec<XmlNode>) {
 }
 
 fn clone_xml_element_fast(source: &XmlElement) -> XmlElement {
-    if let Some(_guard) = RecursiveCloneEqGuard::enter() {
-        XmlElement {
+    match RecursiveCloneEqGuard::enter() {
+        Some(_guard) => XmlElement {
             name: source.name.clone(),
             attributes: source.attributes.clone(),
             children: source.children.clone(),
-        }
-    } else {
-        clone_xml_element_iterative(source)
+        },
+        _ => clone_xml_element_iterative(source),
     }
 }
 
 fn clone_xml_node_fast(source: &XmlNode) -> XmlNode {
-    if let Some(_guard) = RecursiveCloneEqGuard::enter() {
-        match source {
+    match RecursiveCloneEqGuard::enter() {
+        Some(_guard) => match source {
             XmlNode::Element(element) => XmlNode::Element(element.clone()),
             XmlNode::Text(value) => XmlNode::Text(value.clone()),
             XmlNode::Comment(value) => XmlNode::Comment(value.clone()),
             XmlNode::Cdata(value) => XmlNode::Cdata(value.clone()),
             XmlNode::ProcessingInstruction(value) => XmlNode::ProcessingInstruction(value.clone()),
-        }
-    } else {
-        match source {
+        },
+        _ => match source {
             XmlNode::Element(element) => XmlNode::Element(clone_xml_element_iterative(element)),
             XmlNode::Text(value) => XmlNode::Text(value.clone()),
             XmlNode::Comment(value) => XmlNode::Comment(value.clone()),
             XmlNode::Cdata(value) => XmlNode::Cdata(value.clone()),
             XmlNode::ProcessingInstruction(value) => XmlNode::ProcessingInstruction(value.clone()),
-        }
+        },
     }
 }
 
 fn xml_elements_equal_fast(left: &XmlElement, right: &XmlElement) -> bool {
-    if let Some(_guard) = RecursiveCloneEqGuard::enter() {
-        left.name == right.name
-            && left.attributes == right.attributes
-            && left.children == right.children
-    } else {
-        xml_elements_equal_iterative(left, right)
+    match RecursiveCloneEqGuard::enter() {
+        Some(_guard) => {
+            left.name == right.name
+                && left.attributes == right.attributes
+                && left.children == right.children
+        }
+        _ => xml_elements_equal_iterative(left, right),
     }
 }
 
 fn xml_node_equal_fast(left: &XmlNode, right: &XmlNode) -> bool {
-    if let Some(_guard) = RecursiveCloneEqGuard::enter() {
-        match (left, right) {
+    match RecursiveCloneEqGuard::enter() {
+        Some(_guard) => match (left, right) {
             (XmlNode::Element(left), XmlNode::Element(right)) => left == right,
             (XmlNode::Text(left), XmlNode::Text(right))
             | (XmlNode::Comment(left), XmlNode::Comment(right))
@@ -631,9 +633,8 @@ fn xml_node_equal_fast(left: &XmlNode, right: &XmlNode) -> bool {
                 left == right
             }
             _ => false,
-        }
-    } else {
-        xml_node_equal_iterative(left, right)
+        },
+        _ => xml_node_equal_iterative(left, right),
     }
 }
 
@@ -943,7 +944,9 @@ impl XmlCompactDocument {
     }
 
     /// Iterates all valid node identifiers in document order.
-    pub fn node_ids(&self) -> impl DoubleEndedIterator<Item = XmlViewNodeId> + ExactSizeIterator {
+    pub fn node_ids(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = XmlViewNodeId> + ExactSizeIterator + use<> {
         (0..self.nodes.len()).map(XmlViewNodeId)
     }
 
@@ -1127,7 +1130,9 @@ impl<'a> XmlDocumentView<'a> {
     }
 
     /// Iterates valid node identifiers in document order.
-    pub fn node_ids(&self) -> impl DoubleEndedIterator<Item = XmlViewNodeId> + ExactSizeIterator {
+    pub fn node_ids(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = XmlViewNodeId> + ExactSizeIterator + use<> {
         (0..self.nodes.len()).map(XmlViewNodeId)
     }
 

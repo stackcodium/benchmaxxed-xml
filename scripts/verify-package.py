@@ -12,8 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 REQUIRED = [
     ".nojekyll", "README.md", "RUNNING.md", "LICENSE",
-    "parser/Cargo.toml", "benchmarks/bun-xml-bench.ts", "benchmarks/php-xml-bench.php",
-    "benchmarks/python-xml-bench.py", "benchmarks/pugixml_bench.cpp",
+    "parser/Cargo.toml", "benchmarks/bun-xml-bench.ts", "benchmarks/pugixml_bench.cpp",
+    "benchmarks/php-xml-bench.php", "benchmarks/python-xml-bench.py",
     "benchmarks/quickxml-bench/Cargo.toml", "datasets/canada.xml",
     "scripts/capture-environment.py",
     "datasets/citm_catalog.xml", "datasets/twitter.xml", "reports/latest/xml-parser-report.html",
@@ -34,6 +34,18 @@ TEXT_SUFFIXES = {".c", ".cc", ".cpp", ".h", ".html", ".json", ".md", ".py", ".rs
 errors: list[str] = []
 for relative in REQUIRED:
     if not (ROOT / relative).is_file(): errors.append(f"missing required file: {relative}")
+
+readme_path = ROOT / "README.md"
+if readme_path.is_file():
+    expected_report_url = (
+        "https://stackcodium.github.io/benchmaxxed-xml/"
+        "reports/latest/xml-parser-report.html"
+    )
+    readme = readme_path.read_text(encoding="utf-8")
+    if expected_report_url not in readme:
+        errors.append("README does not link to the deployed GitHub Pages report")
+    if "](reports/latest/xml-parser-report.html)" in readme:
+        errors.append("README report link incorrectly targets GitHub's source-file view")
 
 for path in ROOT.rglob("*"):
     relative = path.relative_to(ROOT)
@@ -57,17 +69,13 @@ for path in ROOT.rglob("*"):
 expected_references = {
     "quick_xml": ("https://github.com/tafia/quick-xml", "v0.41.0", "4deda08abeffdc188c269360229cf47e12a77a9f"),
     "pugixml": ("https://github.com/zeux/pugixml", "v1.16-1-g27b6832", "27b68329de32cf9c601ca8eb6c588fd639960c40"),
-    "bun": ("https://github.com/oven-sh/bun", "1.4.0-canary.1+1dd66afde", "1dd66afde213732c645c60ac08cf68f1087a271d"),
+    "bun": ("https://github.com/oven-sh/bun", "1.4.0+34cbb9a40", "34cbb9a40b4bd1bd767d134a7065e66c2432a676"),
 }
 references_path = ROOT / "provenance/references.toml"
 if references_path.is_file():
     with references_path.open("rb") as handle: references = tomllib.load(handle)
-    if references.get("package_version") != "0.1.0":
+    if references.get("package_version") != "0.1.1":
         errors.append("package version does not match the published release")
-    expected_runtimes = {"php": "8.5.9", "python": "3.13.14"}
-    for key, version in expected_runtimes.items():
-        if references.get("runtimes", {}).get(key, {}).get("version") != version:
-            errors.append(f"runtime version lock mismatch: {key}")
     for key, (url, version, revision) in expected_references.items():
         actual = references.get("references", {}).get(key, {})
         if (actual.get("url"), actual.get("version"), actual.get("revision")) != (url, version, revision):
@@ -101,7 +109,7 @@ environment_path = ROOT / "reports/latest/environment.json"
 if environment_path.is_file():
     environment = json.loads(environment_path.read_text(encoding="utf-8"))
     parser_source = environment.get("source", {}).get("parser") or {}
-    if parser_source.get("revision") != "7e3d7f924bd94d6aefb49d63f8fa81eb09e4021b" or parser_source.get("dirty"):
+    if parser_source.get("revision") != "05b21ed3c7d2c9630e2cb2bd77d6999160cced31" or parser_source.get("dirty"):
         errors.append("published report parser provenance is not the clean pinned revision")
     environment_references = environment.get("source", {}).get("references", {})
     for key, (_, _, revision) in expected_references.items():
@@ -109,12 +117,8 @@ if environment_path.is_file():
             continue
         if environment_references.get(key, {}).get("revision") != revision:
             errors.append(f"published report environment reference mismatch: {key}")
-    if environment.get("tools", {}).get("bun") != "1.4.0-canary.1+1dd66afde":
+    if environment.get("tools", {}).get("bun") != "1.4.0+34cbb9a40":
         errors.append("published report Bun runtime mismatch")
-    if environment.get("tools", {}).get("php") != "8.5.9":
-        errors.append("published report PHP runtime mismatch")
-    if environment.get("tools", {}).get("python") != "3.13.14":
-        errors.append("published report Python runtime mismatch")
     expected_parsers = {
         "benchmaxxed-xml-walk", "pugixml-minimal-walk", "quickxml-event-walk",
         "bun-xml-ordered-walk", "php-libxml2-compact-walk", "python-libxml2-compact-walk",

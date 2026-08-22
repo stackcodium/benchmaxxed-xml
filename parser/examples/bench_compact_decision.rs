@@ -1,7 +1,7 @@
 use std::{env, fs, hint::black_box, time::Instant};
 
 use xml_parser::{
-    parse_compact_document_with_config, ParserConfig, XmlCompactDocument, XmlDom, XmlNodeKind,
+    ParserConfig, XmlCompactDocument, XmlDom, XmlNodeKind, parse_compact_document_with_config,
 };
 
 const USAGE: &str = "usage: bench_compact_decision MODE INPUT ITERATIONS\n\

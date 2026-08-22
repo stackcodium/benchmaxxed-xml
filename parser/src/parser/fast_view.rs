@@ -185,6 +185,8 @@ impl<'a> Parser<'a> {
         builder: &mut XmlDocumentViewBuilder<'a>,
     ) -> XmlResult<XmlViewNodeId> {
         let mut open = [0u32; MAX_DOM_DEPTH];
+        #[cfg(debug_assertions)]
+        let mut source_nodes = [None; MAX_DOM_DEPTH];
         let mut depth = 0usize;
         let mut root = None;
         let mut element_count = 0usize;
@@ -194,9 +196,13 @@ impl<'a> Parser<'a> {
             if depth == MAX_DOM_DEPTH {
                 return Err(self.error(XmlErrorKind::DepthLimitExceeded));
             }
+            #[cfg(debug_assertions)]
+            let source_start = self.index;
             self.expect_byte(b'<', "<")?;
             let name_start = self.index;
             let name_len = self.parse_name_slice()?.len();
+            #[cfg(debug_assertions)]
+            let source_node = self.start_source_node(XmlNodeKind::Element, source_start);
             let attribute_start = builder.attributes.len();
             let attribute_count = if self.peek() == Some(b'>') || self.starts_empty_element_end() {
                 0
@@ -220,6 +226,8 @@ impl<'a> Parser<'a> {
 
             if self.consume_empty_element_end() {
                 builder.close_node(node);
+                #[cfg(debug_assertions)]
+                self.finish_source_node(source_node, self.index);
                 if depth == 0 {
                     finish_fast_view_stats(builder, element_count, attribute_count_total);
                     return Ok(root.expect("root node was initialized"));
@@ -227,6 +235,10 @@ impl<'a> Parser<'a> {
             } else {
                 self.expect_byte(b'>', ">")?;
                 open[depth] = fast_compact_usize(node.0);
+                #[cfg(debug_assertions)]
+                {
+                    source_nodes[depth] = source_node;
+                }
                 depth += 1;
             }
 
@@ -248,6 +260,8 @@ impl<'a> Parser<'a> {
                                 &self.input[name_start..name_start + record.name_len as usize];
                             self.consume_end_tag_matching(name)?;
                             builder.close_node(element);
+                            #[cfg(debug_assertions)]
+                            self.finish_source_node(source_nodes[depth - 1], self.index);
                             depth -= 1;
                             if depth == 0 {
                                 finish_fast_view_stats(
@@ -261,6 +275,8 @@ impl<'a> Parser<'a> {
                         Some(b'!') if self.starts_with("<!--") => {
                             let start = self.index;
                             self.skip_comment_opened()?;
+                            #[cfg(debug_assertions)]
+                            self.push_source_leaf(XmlNodeKind::Comment, start, self.index);
                             builder.push_leaf_child(
                                 XmlViewNodeId(open[depth - 1] as usize),
                                 XmlNodeKind::Comment,
@@ -268,7 +284,11 @@ impl<'a> Parser<'a> {
                             );
                         }
                         Some(b'!') if self.starts_with("<![CDATA[") => {
+                            #[cfg(debug_assertions)]
+                            let start = self.index;
                             let value = self.skip_cdata_range_opened()?.unwrap_or((0, 0));
+                            #[cfg(debug_assertions)]
+                            self.push_source_leaf(XmlNodeKind::Cdata, start, self.index);
                             builder.push_leaf_child(
                                 XmlViewNodeId(open[depth - 1] as usize),
                                 XmlNodeKind::Cdata,
@@ -277,7 +297,15 @@ impl<'a> Parser<'a> {
                         }
                         Some(b'!') => return Err(self.error(XmlErrorKind::UnexpectedToken)),
                         Some(b'?') => {
+                            #[cfg(debug_assertions)]
+                            let start = self.index;
                             let target = self.skip_processing_instruction_target_opened()?;
+                            #[cfg(debug_assertions)]
+                            self.push_source_leaf(
+                                XmlNodeKind::ProcessingInstruction,
+                                start,
+                                self.index,
+                            );
                             let data_start = self.skip_xml_whitespace_at(target.0 + target.1);
                             builder.push_leaf_child_with_secondary(
                                 XmlViewNodeId(open[depth - 1] as usize),
@@ -291,6 +319,8 @@ impl<'a> Parser<'a> {
                     }
                 } else {
                     let value = self.skip_text()?;
+                    #[cfg(debug_assertions)]
+                    self.push_source_leaf(XmlNodeKind::Text, value.0, value.0 + value.1);
                     builder.push_leaf_child(
                         XmlViewNodeId(open[depth - 1] as usize),
                         XmlNodeKind::Text,

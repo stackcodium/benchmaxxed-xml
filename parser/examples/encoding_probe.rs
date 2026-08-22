@@ -5,8 +5,8 @@ use std::{
 };
 
 use xml_parser::{
-    decode_xml_bytes, validate_document_bytes_with_config, ParserConfig, XmlErrorKind,
-    XmlInputEncoding,
+    ParserConfig, XmlErrorKind, XmlInputEncoding, decode_xml_bytes,
+    validate_document_bytes_with_config,
 };
 
 fn main() -> ExitCode {

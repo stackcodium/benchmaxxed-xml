@@ -1,6 +1,6 @@
 use std::{hint::black_box, time::Instant};
 
-use xml_parser::{count_document, parse_document_view, validate_document, XmlDom};
+use xml_parser::{XmlDom, count_document, parse_document_view, validate_document};
 
 const CASES: [(usize, usize); 5] = [
     (1_000, 64),

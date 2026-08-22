@@ -8,10 +8,10 @@ use std::{
 };
 
 use xml_parser::{
-    count_document_with_config, parse_compact_document_with_config,
-    parse_document_view_with_config, validate_document_with_config, ParserConfig,
-    XmlCompactDocument, XmlDocumentView, XmlDom, XmlNodeKind, XmlTextWhitespacePolicy,
-    XmlTreeStats, XmlViewNodeId,
+    ParserConfig, XmlCompactDocument, XmlDocumentView, XmlDom, XmlNodeKind,
+    XmlTextWhitespacePolicy, XmlTreeStats, XmlViewNodeId, count_document_with_config,
+    parse_compact_document_with_config, parse_document_view_with_config,
+    validate_document_with_config,
 };
 
 #[path = "bench_parse/bench_stream.rs"]
@@ -21,8 +21,7 @@ use bench_stream::{
     count_generated_xml_bytes, count_generated_xml_stream_reader, count_xml_stream_reader,
 };
 
-const USAGE: &str =
-    "usage: bench_parse [--quiet] [--xml-dom-full-dom|--compact-full-dom|--parse-only|--view-only|--view-walk|--count-only|--stream-count-only|--generated-count-only|--stream-generated-count-only|--validate-only] [--skip-whitespace-text|--compact-dom|--drop-text] [--trusted-xml-chars|--trusted-references|--trusted-attributes] [--mode-label LABEL] [--warmup N] [--iterations N] [--runs N] [--min-duration-ms N] FILE...";
+const USAGE: &str = "usage: bench_parse [--quiet] [--xml-dom-full-dom|--compact-full-dom|--parse-only|--view-only|--view-walk|--count-only|--stream-count-only|--generated-count-only|--stream-generated-count-only|--validate-only] [--skip-whitespace-text|--compact-dom|--drop-text] [--trusted-xml-chars|--trusted-references|--trusted-attributes] [--mode-label LABEL] [--warmup N] [--iterations N] [--runs N] [--min-duration-ms N] FILE...";
 
 fn main() -> ExitCode {
     let mut options = BenchOptions {

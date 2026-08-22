@@ -14,7 +14,7 @@ use crate::{
         XmlDocumentView, XmlNode, XmlNodeKind, XmlProcessingInstruction, XmlTreeStats,
         XmlViewNodeId,
     },
-    dtd::{parse_internal_subset_entities, XmlGeneralEntity},
+    dtd::{XmlGeneralEntity, parse_internal_subset_entities},
     encoding::decode_xml_bytes,
     error::{XmlError, XmlErrorKind, XmlResult},
     source::{
@@ -22,8 +22,8 @@ use crate::{
         XmlSourceOffsetsBuilder, XmlSourceSpan,
     },
     syntax::{
-        is_name_char, is_name_start_char, is_pubid_char, is_space, is_xml11_char,
-        is_xml11_literal_char, is_xml_char, is_xml_target,
+        is_name_char, is_name_start_char, is_pubid_char, is_space, is_xml_char, is_xml_target,
+        is_xml11_char, is_xml11_literal_char,
     },
 };
 
@@ -868,11 +868,17 @@ pub fn parse_document_view_with_config_and_source_offsets(
 
 /// Validates document.
 pub fn validate_document(input: &str) -> XmlResult<()> {
+    #[cfg(debug_assertions)]
+    return Parser::new(input, ParserConfig::default()).validate_document_stack_safe();
+    #[cfg(not(debug_assertions))]
     Parser::new(input, ParserConfig::default()).validate_document()
 }
 
 /// Validates document with config.
 pub fn validate_document_with_config(input: &str, config: ParserConfig) -> XmlResult<()> {
+    #[cfg(debug_assertions)]
+    return Parser::new(input, config).validate_document_stack_safe();
+    #[cfg(not(debug_assertions))]
     Parser::new(input, config).validate_document()
 }
 
@@ -895,11 +901,17 @@ pub fn validate_document_bytes_with_config(input: &[u8], config: ParserConfig) -
 
 /// Counts document.
 pub fn count_document(input: &str) -> XmlResult<XmlTreeStats> {
+    #[cfg(debug_assertions)]
+    return Parser::new(input, ParserConfig::default()).count_document_stack_safe();
+    #[cfg(not(debug_assertions))]
     Parser::new(input, ParserConfig::default()).count_document()
 }
 
 /// Counts document with config.
 pub fn count_document_with_config(input: &str, config: ParserConfig) -> XmlResult<XmlTreeStats> {
+    #[cfg(debug_assertions)]
+    return Parser::new(input, config).count_document_stack_safe();
+    #[cfg(not(debug_assertions))]
     Parser::new(input, config).count_document()
 }
 
@@ -1009,6 +1021,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[cfg_attr(debug_assertions, allow(dead_code))]
     fn count_document(mut self) -> XmlResult<XmlTreeStats> {
         self.skip_bom();
 
@@ -1059,6 +1072,73 @@ impl<'a> Parser<'a> {
         Ok(stats)
     }
 
+    #[cfg(debug_assertions)]
+    fn validate_document_stack_safe(mut self) -> XmlResult<()> {
+        self.skip_bom();
+
+        if self.starts_xml_declaration() {
+            self.parse_xml_declaration()?;
+        }
+        if self.config.validate_characters {
+            let _ = self.reject_invalid_chars()?;
+        }
+
+        self.skip_misc()?;
+        if self.is_eof() {
+            return Err(self.error(XmlErrorKind::MissingRootElement));
+        }
+        if self.starts_with("<!DOCTYPE") {
+            self.skip_doctype()?;
+            self.skip_misc()?;
+        }
+
+        self.validate_entity_graph()?;
+        if let Some(expanded) = self.expand_document_tail()? {
+            return Parser::new(&expanded, self.config).validate_document_stack_safe();
+        }
+
+        self.validate_element_iterative()?;
+        self.skip_misc()?;
+        if !self.is_eof() {
+            return Err(self.error(XmlErrorKind::TrailingContent));
+        }
+        Ok(())
+    }
+
+    #[cfg(debug_assertions)]
+    fn count_document_stack_safe(mut self) -> XmlResult<XmlTreeStats> {
+        self.skip_bom();
+
+        if self.starts_xml_declaration() {
+            self.parse_xml_declaration()?;
+        }
+        if self.config.validate_characters {
+            let _ = self.reject_invalid_chars()?;
+        }
+
+        self.skip_misc()?;
+        if self.is_eof() {
+            return Err(self.error(XmlErrorKind::MissingRootElement));
+        }
+        if self.starts_with("<!DOCTYPE") {
+            self.skip_doctype()?;
+            self.skip_misc()?;
+        }
+
+        self.validate_entity_graph()?;
+        if let Some(expanded) = self.expand_document_tail()? {
+            return Parser::new(&expanded, self.config).count_document_stack_safe();
+        }
+
+        let mut stats = XmlTreeStats::default();
+        self.count_element_iterative(&mut stats)?;
+        self.skip_misc()?;
+        if !self.is_eof() {
+            return Err(self.error(XmlErrorKind::TrailingContent));
+        }
+        Ok(stats)
+    }
+
     fn parse_document_view(mut self) -> XmlResult<(XmlDocumentView<'a>, Option<XmlSourceOffsets>)> {
         self.skip_bom();
 
@@ -1084,8 +1164,11 @@ impl<'a> Parser<'a> {
         }
 
         self.validate_entity_graph()?;
+        #[cfg(debug_assertions)]
+        let full_fast = self.is_full_view_xml10();
+        #[cfg(not(debug_assertions))]
         let full_fast = self.source_offsets.is_none() && self.is_full_view_xml10();
-        let mut builder = if full_fast {
+        let mut builder = if full_fast && self.source_offsets.is_none() {
             XmlDocumentViewBuilder::new_dense(self.input)
         } else {
             XmlDocumentViewBuilder::new(self.input)
@@ -1287,6 +1370,63 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    #[cfg(debug_assertions)]
+    fn validate_element_iterative(&mut self) -> XmlResult<()> {
+        let mut open = [(0usize, 0usize); MAX_DOM_DEPTH];
+        let mut depth = 0usize;
+
+        loop {
+            if depth == MAX_DOM_DEPTH {
+                return Err(self.error(XmlErrorKind::DepthLimitExceeded));
+            }
+            self.expect_byte(b'<', "<")?;
+            let name_start = self.index;
+            let name_len = self.parse_name_slice()?.len();
+            self.validate_attributes_count()?;
+            self.skip_whitespace();
+
+            if self.consume_empty_element_end() {
+                if depth == 0 {
+                    return Ok(());
+                }
+            } else {
+                self.expect_byte(b'>', ">")?;
+                open[depth] = (name_start, name_len);
+                depth += 1;
+            }
+
+            loop {
+                if self.is_eof() {
+                    return Err(self.error(XmlErrorKind::UnexpectedEof));
+                }
+                if self.peek() == Some(b'<') {
+                    match self.bytes.get(self.index + 1).copied() {
+                        Some(b'/') => {
+                            if depth == 0 {
+                                return Err(self.error(XmlErrorKind::UnexpectedToken));
+                            }
+                            self.index += 2;
+                            let (start, len) = open[depth - 1];
+                            self.consume_end_tag_matching(&self.input[start..start + len])?;
+                            depth -= 1;
+                            if depth == 0 {
+                                return Ok(());
+                            }
+                        }
+                        Some(b'!') if self.starts_with("<!--") => self.skip_comment()?,
+                        Some(b'!') if self.starts_with("<![CDATA[") => self.skip_cdata()?,
+                        Some(b'!') => return Err(self.error(XmlErrorKind::UnexpectedToken)),
+                        Some(b'?') => self.skip_processing_instruction()?,
+                        Some(_) => break,
+                        None => return Err(self.error(XmlErrorKind::UnexpectedEof)),
+                    }
+                } else {
+                    self.skip_text_no_range()?;
+                }
+            }
+        }
+    }
+
     fn validate_element(&mut self, depth: usize) -> XmlResult<()> {
         self.expect_byte(b'<', "<")?;
         let name = self.parse_name_slice()?;
@@ -1301,6 +1441,98 @@ impl<'a> Parser<'a> {
         self.validate_content(name, depth)
     }
 
+    #[cfg(debug_assertions)]
+    fn count_element_iterative(&mut self, stats: &mut XmlTreeStats) -> XmlResult<()> {
+        let mut open = [(0usize, 0usize); MAX_DOM_DEPTH];
+        let mut depth = 0usize;
+
+        loop {
+            if depth == MAX_DOM_DEPTH {
+                return Err(self.error(XmlErrorKind::DepthLimitExceeded));
+            }
+            self.expect_byte(b'<', "<")?;
+            let name_start = self.index;
+            let name_len = self.parse_name_slice()?.len();
+            let attributes = self.validate_attributes_count()?;
+            self.skip_whitespace();
+            stats.elements += 1;
+            stats.attributes += attributes;
+            stats.nodes += 1;
+
+            if self.consume_empty_element_end() {
+                if depth == 0 {
+                    return Ok(());
+                }
+            } else {
+                self.expect_byte(b'>', ">")?;
+                open[depth] = (name_start, name_len);
+                depth += 1;
+            }
+
+            loop {
+                if self.is_eof() {
+                    return Err(self.error(XmlErrorKind::UnexpectedEof));
+                }
+                if self.peek() == Some(b'<') {
+                    match self.bytes.get(self.index + 1).copied() {
+                        Some(b'/') => {
+                            if depth == 0 {
+                                return Err(self.error(XmlErrorKind::UnexpectedToken));
+                            }
+                            self.index += 2;
+                            let (start, len) = open[depth - 1];
+                            self.consume_end_tag_matching(&self.input[start..start + len])?;
+                            depth -= 1;
+                            if depth == 0 {
+                                return Ok(());
+                            }
+                        }
+                        Some(b'!') if self.starts_with("<!--") => {
+                            self.skip_comment()?;
+                            if self.config.preserve_comments {
+                                stats.nodes += 1;
+                            }
+                        }
+                        Some(b'!') if self.starts_with("<![CDATA[") => {
+                            let value = self.skip_cdata_range()?;
+                            let has_content = value.is_some_and(|value| {
+                                self.config.effective_text_whitespace()
+                                    != XmlTextWhitespacePolicy::Trim
+                                    || trim_source_whitespace(self.input, value, self.version).1
+                                        != 0
+                            });
+                            if self.config.preserve_cdata_nodes
+                                || (self.config.preserve_text_nodes && has_content)
+                            {
+                                stats.nodes += 1;
+                            }
+                        }
+                        Some(b'!') => return Err(self.error(XmlErrorKind::UnexpectedToken)),
+                        Some(b'?') => {
+                            self.skip_processing_instruction()?;
+                            if self.config.preserve_processing_instructions {
+                                stats.nodes += 1;
+                            }
+                        }
+                        Some(_) => break,
+                        None => return Err(self.error(XmlErrorKind::UnexpectedEof)),
+                    }
+                } else {
+                    if self.config.effective_text_whitespace() != XmlTextWhitespacePolicy::Preserve
+                        && self.skip_whitespace_text()?
+                    {
+                        continue;
+                    }
+                    self.skip_text_no_range()?;
+                    if self.config.preserve_text_nodes {
+                        stats.nodes += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg_attr(debug_assertions, allow(dead_code))]
     fn count_element(&mut self, stats: &mut XmlTreeStats, depth: usize) -> XmlResult<()> {
         self.expect_byte(b'<', "<")?;
         let name = self.parse_name_slice()?;
@@ -1350,6 +1582,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[cfg_attr(debug_assertions, allow(dead_code))]
     fn count_content(
         &mut self,
         element_name: &str,
@@ -2254,7 +2487,7 @@ fn decode_entity_replacement_text(
                 return Err(XmlError::new(
                     XmlErrorKind::UndeclaredEntity(name.to_owned()),
                     byte,
-                ))
+                ));
             }
         };
         output.push(decoded);

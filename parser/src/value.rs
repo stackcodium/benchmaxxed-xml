@@ -47,7 +47,9 @@ macro_rules! integer_xml_values {
     };
 }
 
-integer_xml_values!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
+integer_xml_values!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize
+);
 
 impl ToXmlValue for bool {
     fn to_xml_value(&self) -> String {

@@ -1,14 +1,14 @@
 use std::{fmt, io};
 
 use crate::{
+    RawXmlNode, XmlCompactDocument, XmlDoctype, XmlElement, XmlNode, XmlNodeKind, XmlPath,
+    XmlProcessingInstruction, XmlViewNodeId,
     dom_facade::{
-        overlay_has_subtree_edits, overlay_node_at, OverlayNodeRef, SparseAttribute, SparseChild,
-        SparseOverlay, SparseRelocation,
+        OverlayNodeRef, SparseAttribute, SparseChild, SparseOverlay, SparseRelocation,
+        overlay_has_subtree_edits, overlay_node_at,
     },
     dtd::validate_internal_subset,
     syntax::{is_pubid_char, is_xml11_char, is_xml11_literal_char},
-    RawXmlNode, XmlCompactDocument, XmlDoctype, XmlElement, XmlNode, XmlNodeKind, XmlPath,
-    XmlProcessingInstruction, XmlViewNodeId,
 };
 
 pub(crate) fn compact_overlay_subtree_to_string_with_options(
@@ -1078,7 +1078,7 @@ impl<O: SerializerOutput> Serializer<'_, O> {
                         })
                 })
                 .collect();
-            added_attributes.sort_unstable_by(|left, right| left.0 .1.cmp(&right.0 .1));
+            added_attributes.sort_unstable_by(|left, right| left.0.1.cmp(&right.0.1));
             for ((_, name), value) in added_attributes {
                 self.output.push(' ');
                 self.output.push_str(name);

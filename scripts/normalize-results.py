@@ -4,14 +4,7 @@ import sys
 from pathlib import Path
 
 out_dir = Path(sys.argv[1])
-parsers = sys.argv[2:] or [
-    "benchmaxxed-xml-walk",
-    "pugixml-minimal-walk",
-    "quickxml-event-walk",
-    "bun-xml-ordered-walk",
-    "php-libxml2-compact-walk",
-    "python-libxml2-compact-walk",
-]
+parsers = sys.argv[2:] or ["benchmaxxed-xml-walk", "pugixml-minimal-walk", "quickxml-event-walk", "bun-xml-ordered-walk"]
 fields = ["parser", "dataset", "input_bytes", "iterations", "best_ms", "mb_s", "checksum"]
 
 with (out_dir / "public-results.tsv").open("w", newline="", encoding="utf-8") as handle:

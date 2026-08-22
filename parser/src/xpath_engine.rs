@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    XmlAttribute, XmlElement, XmlNamespace, XmlNode, XmlProcessingInstruction, XmlQualifiedName,
-    XML_NAMESPACE_URI,
+    XML_NAMESPACE_URI, XmlAttribute, XmlElement, XmlNamespace, XmlNode, XmlProcessingInstruction,
+    XmlQualifiedName,
 };
 
 const MAX_XPATH_EXPRESSION_DEPTH: usize = 96;

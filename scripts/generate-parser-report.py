@@ -43,7 +43,7 @@ PARSER_COLORS = {
     "quickxml-event-walk": "serde",
     "bun-xml-ordered-walk": "violet",
     "php-libxml2-compact-walk": "php",
-    "python-libxml2-compact-walk": "coral",
+    "python-libxml2-compact-walk": "gold",
 }
 
 PARSER_LABELS = {
@@ -173,15 +173,15 @@ def parser_sort_key(parser: str) -> tuple[int, str]:
         "pugixml-minimal": 14,
         "quickxml-borrowed": 15,
         "benchmaxxed-xml": 16,
-        "benchmaxxed-xml-walk": 17,
-        "pugixml-minimal-walk": 18,
-        "quickxml-event-walk": 19,
-        "bun-xml-ordered-walk": 20,
+        "pugixml-minimal-walk": 17,
+        "quickxml-event-walk": 18,
+        "bun-xml-ordered-walk": 19,
+        "benchmaxxed-xml-walk": 20,
         "php-libxml2-compact-walk": 21,
         "python-libxml2-compact-walk": 22,
-        "benchmaxxed-xml-owned-full-dom": 21,
-        "benchmaxxed-xml-compact-owned-full-dom": 22,
-        "pugixml-owned-full-dom": 23,
+        "benchmaxxed-xml-owned-full-dom": 23,
+        "benchmaxxed-xml-compact-owned-full-dom": 24,
+        "pugixml-owned-full-dom": 25,
         "local-json-retained-walk": 21,
         "local-toml-retained-walk": 22,
         "local-toml-retained-walk-before": 22,
@@ -354,20 +354,11 @@ def system_note(metrics: dict[str, dict[str, float]]) -> str:
 
 def methodology_note(parsers: list[str]) -> str:
     notes = []
-    xml_modes = {
-        "benchmaxxed-xml-walk": "Benchmaxxed uses its trusted compact view",
-        "pugixml-minimal-walk": "pugixml uses minimal mode",
-        "quickxml-event-walk": "quick-xml uses borrowed events",
-        "bun-xml-ordered-walk": "Bun uses XML.parse({ compact: false })",
-        "php-libxml2-compact-walk": "PHP uses libxml2 through FFI in compact mode",
-        "python-libxml2-compact-walk": "Python uses libxml2 through ctypes in compact mode",
-    }
-    selected_xml_modes = [description for parser, description in xml_modes.items() if parser in parsers]
-    if selected_xml_modes:
+    if "bun-xml-ordered-walk" in parsers:
         notes.append(
-            "XML throughput includes parse + complete walk; "
-            + "; ".join(selected_xml_modes)
-            + "."
+            "XML throughput includes parse + complete walk; Bun uses XML.parse({ compact: false }), "
+            "benchmaxxed uses its trusted compact view, pugixml uses minimal mode, and quick-xml "
+            "uses borrowed events."
         )
     if "bun-yaml-walk" in parsers:
         notes.append(
@@ -408,7 +399,6 @@ def build_report(
   --bench: #20ba74;
   --gold: #efb342;
   --violet: #8b5cf6;
-  --coral: #e76f51;
 }
 * { box-sizing: border-box; }
 body {
@@ -441,7 +431,6 @@ main { width: min(1080px, calc(100vw - 24px)); margin: 0 auto; padding: 12px 0 1
 .swatch.php { background: var(--php); }
 .swatch.gold { background: var(--gold); }
 .swatch.violet { background: var(--violet); }
-.swatch.coral { background: var(--coral); }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .card.wide { grid-column: 1 / -1; }
 .card {
@@ -513,7 +502,6 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; l
 .bar.php { background: var(--php); }
 .bar.gold { background: var(--gold); }
 .bar.violet { background: var(--violet); }
-.bar.coral { background: var(--coral); }
 .bar-label {
   position: absolute;
   left: 50%;

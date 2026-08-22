@@ -12,13 +12,15 @@ metrics. The verified scopes are:
 
 Required tools:
 
-- Rust and Cargo with edition 2021 support
+- Rust 1.85 or newer with Cargo and edition 2024 support
 - a C++17 compiler
-- PHP `8.5.9` with FFI and the system `libxml2.so.2`
-- Python `3.13.14` with the standard-library `ctypes` module and the system `libxml2.so.2`
+- Python 3.11 or newer
 - Git
 - GNU time at `/usr/bin/time`
-- Bun `1.4.0-canary.1+1dd66afde`
+- Bun `1.4.0+34cbb9a40`
+
+The `php` and `python` adapters additionally require PHP with FFI enabled and `libxml2.so.2`.
+Their locally installed runtime versions are captured in generated reports.
 
 No reference source is downloaded implicitly by the benchmark command.
 
@@ -39,19 +41,15 @@ That script checks out:
 - [pugixml](https://github.com/zeux/pugixml) at `27b68329de32cf9c601ca8eb6c588fd639960c40`
 - [serde-rs/json-benchmark](https://github.com/serde-rs/json-benchmark) at `17b13dd2d7a5e5fdd5594e847077932f955b5e2b`
 
-Bun, PHP, and Python must report the exact published runtime versions:
+Bun must report the exact published runtime version:
 
 ```bash
 bun --revision
-# 1.4.0-canary.1+1dd66afde
-php -r 'echo PHP_VERSION, "\n";'
-# 8.5.9
-python3 -c 'import platform; print(platform.python_version())'
-# 3.13.14
+# 1.4.0+34cbb9a40
 ```
 
-To intentionally benchmark other runtime versions, set `ALLOW_VERSION_MISMATCH=1`; the resulting
-report must not be presented as the included published run without updating its provenance.
+To intentionally benchmark another Bun build, set `ALLOW_VERSION_MISMATCH=1`; the resulting report
+must not be presented as the included published run without updating its provenance.
 
 ## Verify the package
 
@@ -78,7 +76,7 @@ scripts/run-benchmark.sh
 
 Results are written below `.local/xml-parser-bench/`; the command does not overwrite the included
 report under `reports/latest/`. Defaults can be overridden with `RUNS`, `MIN_MS`, `WARMUP`,
-`ITERATIONS`, `COOLDOWN_SECONDS`, `BUN_BIN`, `PHP_BIN`, `PYTHON_BIN`, `CXX`, and `TIME_BIN`.
+`ITERATIONS`, `COOLDOWN_SECONDS`, `BUN_BIN`, `CXX`, and `TIME_BIN`.
 
 To validate only the native implementations on a machine where the pinned Bun build is unavailable:
 
@@ -88,7 +86,8 @@ PARSERS=benchmaxxed,pugixml,quickxml RUNS=1 MIN_MS=25 WARMUP=0 COOLDOWN_SECONDS=
 ```
 
 `PARSERS` accepts `benchmaxxed`, `pugixml`, `quickxml`, `bun`, `php`, and `python`. A report that
-omits an implementation is a compatibility/smoke report, not the published six-parser comparison.
+changes the default six-parser set is a compatibility/smoke report, not the included published
+comparison.
 
 For comparable results, retain the default parser modes and reference revisions. Record CPU
 governor, background workload, thermals, and architecture when publishing measurements.

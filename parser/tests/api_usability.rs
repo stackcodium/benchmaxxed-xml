@@ -1,9 +1,9 @@
 use xml_parser::{
-    parse_compact_document, parse_compact_document_bytes, parse_document_view,
-    parse_document_view_with_source_offsets, parse_fragment, validate_document, XPathContext,
-    XPathExpression, XPathVariables, XmlDeclarationMode, XmlDom, XmlDomError, XmlDomNodeSet,
-    XmlElement, XmlErrorKind, XmlNode, XmlNodeKind, XmlOutputEncoding, XmlParser,
-    XmlSerializeOptions, XmlValueError, XmlVersion, XmlWriteError,
+    XPathContext, XPathExpression, XPathVariables, XmlDeclarationMode, XmlDom, XmlDomError,
+    XmlDomNodeSet, XmlElement, XmlErrorKind, XmlNode, XmlNodeKind, XmlOutputEncoding, XmlParser,
+    XmlSerializeOptions, XmlValueError, XmlVersion, XmlWriteError, parse_compact_document,
+    parse_compact_document_bytes, parse_document_view, parse_document_view_with_source_offsets,
+    parse_fragment, validate_document,
 };
 
 #[test]
@@ -15,10 +15,12 @@ fn compact_document_moves_and_navigates() -> Result<(), Box<dyn std::error::Erro
     assert_eq!(moved.node_name(moved.root()), Some("r"));
     assert_eq!(moved.tree_stats().elements, 2);
     assert_eq!(moved.tree_stats().attributes, 1);
-    assert!(moved
-        .node_ids()
-        .filter_map(|id| moved.node(id))
-        .any(|node| node.kind() == XmlNodeKind::Cdata));
+    assert!(
+        moved
+            .node_ids()
+            .filter_map(|id| moved.node(id))
+            .any(|node| node.kind() == XmlNodeKind::Cdata)
+    );
     Ok(())
 }
 
@@ -83,9 +85,11 @@ fn xpath_expression_depth_is_bounded_before_recursive_ast_work() {
     let document = XmlDom::parse("<r/>").unwrap();
     let control = nested_not(64);
     let compiled = XPathExpression::compile(&control).unwrap();
-    assert!(document
-        .evaluate_xpath_boolean_with_context(&compiled, &XPathContext::default())
-        .unwrap());
+    assert!(
+        document
+            .evaluate_xpath_boolean_with_context(&compiled, &XPathContext::default())
+            .unwrap()
+    );
 
     let deeply_parenthesized = format!("{}1{}", "(".repeat(20_000), ")".repeat(20_000));
     assert_xpath_depth_error(XPathExpression::compile(&deeply_parenthesized).unwrap_err());
@@ -103,9 +107,11 @@ fn xpath_expression_depth_is_bounded_before_recursive_ast_work() {
     let inline_error = document
         .evaluate_xpath_boolean(&nested_not(12_000))
         .unwrap_err();
-    assert!(inline_error
-        .to_string()
-        .contains("XPath expression depth limit exceeded"));
+    assert!(
+        inline_error
+            .to_string()
+            .contains("XPath expression depth limit exceeded")
+    );
 }
 
 #[test]
@@ -209,15 +215,17 @@ fn compact_document_decodes_byte_inputs() -> Result<(), Box<dyn std::error::Erro
         .collect();
     let document = parse_compact_document_bytes(&utf16)?;
     assert_eq!(document.node_name(document.root()), Some("r"));
-    assert!(document
-        .node_ids()
-        .any(|id| document.node_value(id) == Some("ok")));
+    assert!(
+        document
+            .node_ids()
+            .any(|id| document.node_value(id) == Some("ok"))
+    );
     Ok(())
 }
 
 #[test]
-fn xml_dom_scan_borrows_compact_values_and_preserves_overlay_semantics(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xml_dom_scan_borrows_compact_values_and_preserves_overlay_semantics()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse("<r a='x&#x20;y'><item>A&amp;B</item><!--note--></r>")?;
     let mut observed = Vec::new();
     document.root().scan(|node| {
@@ -270,8 +278,8 @@ fn xml_dom_scan_borrows_compact_values_and_preserves_overlay_semantics(
 }
 
 #[test]
-fn xml_dom_scan_normalizes_literal_attribute_whitespace_in_compact_and_overlay_states(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xml_dom_scan_normalizes_literal_attribute_whitespace_in_compact_and_overlay_states()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse("<r a='x\ny\tz'><item b='p\tq'/></r>")?;
     assert_eq!(document.root().attribute("a")?.as_deref(), Some("x y z"));
 
@@ -325,8 +333,8 @@ fn xml_dom_scan_normalizes_literal_attribute_whitespace_in_compact_and_overlay_s
 }
 
 #[test]
-fn xml_dom_supports_shared_read_edit_query_and_write_workflow(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xml_dom_supports_shared_read_edit_query_and_write_workflow()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse("<catalog><item id='42'>old</item></catalog>")?;
     let catalog = document.root();
     let item = catalog.child("item")?.ok_or("missing item")?;
@@ -350,8 +358,8 @@ fn xml_dom_supports_shared_read_edit_query_and_write_workflow(
 }
 
 #[test]
-fn xml_dom_node_sets_support_borrowed_and_collected_workflows(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xml_dom_node_sets_support_borrowed_and_collected_workflows()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse("<r><item id='1'/><item id='2'/></r>")?;
     let selected: XmlDomNodeSet = document.select_elements("//item[@id]")?;
     assert_eq!(selected[0].attribute("id")?.as_deref(), Some("1"));
@@ -383,8 +391,8 @@ fn xml_dom_handles_keep_identity_across_structural_edits() -> Result<(), Box<dyn
 }
 
 #[test]
-fn xml_dom_tolerant_parse_is_explicit_and_strict_parse_stays_atomic(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xml_dom_tolerant_parse_is_explicit_and_strict_parse_stays_atomic()
+-> Result<(), Box<dyn std::error::Error>> {
     let source = "<r><metadata>useful</metadata><broken></wrong>";
     let strict = XmlDom::parse(source).unwrap_err();
     let outcome = XmlDom::parse_tolerant(source)?;
@@ -427,8 +435,8 @@ fn xml_dom_supports_fragments_and_compiled_xpath() -> Result<(), Box<dyn std::er
 }
 
 #[test]
-fn xml_dom_node_relative_xpath_supports_compiled_context_and_scalars(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xml_dom_node_relative_xpath_supports_compiled_context_and_scalars()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse(
         "<r xmlns:s='urn:shop'><group><s:item score='2'>A</s:item><s:item score='4'>B</s:item><plain score='3'/><!--note--><?go yes?></group></r>",
     )?;
@@ -537,8 +545,8 @@ fn xml_dom_supports_namespaces_and_non_utf8_output() -> Result<(), Box<dyn std::
 }
 
 #[test]
-fn xml_dom_selected_nodes_expose_kinds_snapshots_and_subtree_output(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xml_dom_selected_nodes_expose_kinds_snapshots_and_subtree_output()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse(
         "<?xml version='1.0'?><r><item id='1'>text<![CDATA[data]]><!--note--><?go now?></item></r>",
     )?;
@@ -644,8 +652,8 @@ fn borrowed_view_and_source_offsets_remain_available() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn reusable_parser_exposes_one_coherent_input_and_representation_matrix(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn reusable_parser_exposes_one_coherent_input_and_representation_matrix()
+-> Result<(), Box<dyn std::error::Error>> {
     let parser = XmlParser::preserving_all();
     let source = "<!--before--><root><item>text</item></root>";
 
@@ -695,14 +703,18 @@ fn reusable_parser_exposes_one_coherent_input_and_representation_matrix(
     let tolerant = parser.parse_tolerant("<root><ok/><broken></wrong>")?;
     assert!(tolerant.diagnostic.is_some());
     assert_eq!(tolerant.value.root().name()?.as_deref(), Some("root"));
-    assert!(parser
-        .parse_compact_tolerant("<root><ok/><broken></wrong>")?
-        .diagnostic
-        .is_some());
-    assert!(parser
-        .parse_fragment_tolerant("<ok/><broken></wrong>")?
-        .diagnostic
-        .is_some());
+    assert!(
+        parser
+            .parse_compact_tolerant("<root><ok/><broken></wrong>")?
+            .diagnostic
+            .is_some()
+    );
+    assert!(
+        parser
+            .parse_fragment_tolerant("<ok/><broken></wrong>")?
+            .diagnostic
+            .is_some()
+    );
     Ok(())
 }
 
@@ -723,8 +735,8 @@ fn facade_typed_values_preserve_the_target_parse_error() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn element_only_xpath_consistently_filters_non_element_nodes(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn element_only_xpath_consistently_filters_non_element_nodes()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse("<root id='7'><child/></root>")?;
     assert!(document.root().select_elements("@id")?.is_empty());
     assert_eq!(document.root().select_nodes("@id")?.len(), 1);
@@ -737,8 +749,8 @@ fn element_only_xpath_consistently_filters_non_element_nodes(
 }
 
 #[test]
-fn compact_and_borrowed_nodes_share_ergonomic_navigation_and_scalar_access(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn compact_and_borrowed_nodes_share_ergonomic_navigation_and_scalar_access()
+-> Result<(), Box<dyn std::error::Error>> {
     let source = "<root id='7'><!--note--><?go now?><item>text</item></root>";
     let compact = parse_compact_document(source.to_owned())?;
     let compact_root = compact.root_node();
@@ -785,8 +797,8 @@ fn compact_and_borrowed_nodes_share_ergonomic_navigation_and_scalar_access(
 }
 
 #[test]
-fn compact_metadata_version_and_serialization_are_directly_accessible(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn compact_metadata_version_and_serialization_are_directly_accessible()
+-> Result<(), Box<dyn std::error::Error>> {
     let source = "<?xml version='1.1'?><!--before--><!DOCTYPE root><root/><!--after-->";
     let parser = XmlParser::preserving_all();
     let compact = parser.parse_compact(source)?;
@@ -816,8 +828,8 @@ fn compact_metadata_version_and_serialization_are_directly_accessible(
 }
 
 #[test]
-fn constructed_element_serialization_is_stack_safe_and_preserves_depth_limits(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn constructed_element_serialization_is_stack_safe_and_preserves_depth_limits()
+-> Result<(), Box<dyn std::error::Error>> {
     const DEPTH: usize = 20_000;
     let output = std::thread::Builder::new()
         .stack_size(1_024 * 1_024)
@@ -858,8 +870,8 @@ fn constructed_element_serialization_is_stack_safe_and_preserves_depth_limits(
 }
 
 #[test]
-fn constructed_element_debug_is_stack_safe_and_usefully_bounded(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn constructed_element_debug_is_stack_safe_and_usefully_bounded()
+-> Result<(), Box<dyn std::error::Error>> {
     let shallow = XmlElement::with_text("n", "x")?;
     assert_eq!(
         format!("{shallow:?}"),
@@ -888,8 +900,8 @@ fn constructed_element_debug_is_stack_safe_and_usefully_bounded(
 }
 
 #[test]
-fn sparse_root_relocation_uses_the_structural_root_boundary(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn sparse_root_relocation_uses_the_structural_root_boundary()
+-> Result<(), Box<dyn std::error::Error>> {
     let sources = [
         "<catalog><item id='1'/><item id='2'/></catalog><!-- </catalog> -->",
         "<?before x?><catalog><item id='1'/><item id='2'/></catalog><?after </catalog>?><!-- </catalog> -->",
@@ -936,8 +948,8 @@ fn sparse_root_relocation_uses_the_structural_root_boundary(
 }
 
 #[test]
-fn xpath_following_axis_preserves_union_and_predicate_semantics(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xpath_following_axis_preserves_union_and_predicate_semantics()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse(
         "<r><section id='outer'><section id='inner'/><inside/></section><middle/><section id='last'><n/></section><tail/></r>",
     )?;
@@ -998,8 +1010,8 @@ fn xpath_following_axis_preserves_union_and_predicate_semantics(
 }
 
 #[test]
-fn xpath_preceding_axis_preserves_union_and_predicate_semantics(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn xpath_preceding_axis_preserves_union_and_predicate_semantics()
+-> Result<(), Box<dyn std::error::Error>> {
     let document = XmlDom::parse(
         "<r><before/><section id='outer'><lead/><section id='inner'/></section><middle/><section id='last'><n/></section><tail/></r>",
     )?;

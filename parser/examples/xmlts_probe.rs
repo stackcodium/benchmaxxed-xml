@@ -6,8 +6,8 @@ use std::{
 };
 
 use xml_parser::{
-    count_document_bytes, decode_xml_bytes, parse_compact_document, validate_document_bytes,
-    XmlDom, XmlErrorKind, XmlInputEncoding,
+    XmlDom, XmlErrorKind, XmlInputEncoding, count_document_bytes, decode_xml_bytes,
+    parse_compact_document, validate_document_bytes,
 };
 
 const DEFAULT_XMLTS_ROOT: &str = ".local/xmlts20130923/xmlconf";

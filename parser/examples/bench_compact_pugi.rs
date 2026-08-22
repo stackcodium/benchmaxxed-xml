@@ -6,8 +6,8 @@ use std::{
 };
 
 use xml_parser::{
-    parse_compact_document_with_config, ParserConfig, XmlCompactDocument, XmlDom, XmlNodeKind,
-    XmlTreeStats,
+    ParserConfig, XmlCompactDocument, XmlDom, XmlNodeKind, XmlTreeStats,
+    parse_compact_document_with_config,
 };
 
 const USAGE: &str = "usage: bench_compact_pugi --engine compact|dom --workload parse|walk|walk-indexed|parse-walk|retain-10pct|clone|serialize [--runs N] [--warmup N] [--iterations N] [--min-duration-ms N] [--trusted-xml-chars] [--trusted-references] [--trusted-attributes] XML_FILE";

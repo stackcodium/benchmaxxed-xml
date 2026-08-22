@@ -14,18 +14,18 @@ use std::{
 };
 
 use crate::xpath_engine::{
-    simple_descendant_filter, SimpleDescendantFilter, XPathArena, XPathArenaNodeKind,
-    XPathArenaSelection, XPathArenaValue,
+    SimpleDescendantFilter, XPathArena, XPathArenaNodeKind, XPathArenaSelection, XPathArenaValue,
+    simple_descendant_filter,
 };
 
 use crate::{
-    parse_compact_document, parse_compact_document_bytes,
-    parse_compact_document_bytes_tolerant_with_config, parse_compact_document_bytes_with_config,
-    parse_compact_document_tolerant_with_config, parse_compact_document_with_config, ParserConfig,
-    ToXmlValue, XPathContext, XPathError, XPathExpression, XPathVariables, XmlCompactDocument,
-    XmlElement, XmlError, XmlLoadError, XmlMutationError, XmlNode, XmlNodeKind, XmlNodeRef,
-    XmlParseOutcome, XmlPath, XmlSerializeOptions, XmlTreeStats, XmlWriteError,
-    XMLNS_NAMESPACE_URI, XML_NAMESPACE_URI,
+    ParserConfig, ToXmlValue, XML_NAMESPACE_URI, XMLNS_NAMESPACE_URI, XPathContext, XPathError,
+    XPathExpression, XPathVariables, XmlCompactDocument, XmlElement, XmlError, XmlLoadError,
+    XmlMutationError, XmlNode, XmlNodeKind, XmlNodeRef, XmlParseOutcome, XmlPath,
+    XmlSerializeOptions, XmlTreeStats, XmlWriteError, parse_compact_document,
+    parse_compact_document_bytes, parse_compact_document_bytes_tolerant_with_config,
+    parse_compact_document_bytes_with_config, parse_compact_document_tolerant_with_config,
+    parse_compact_document_with_config,
 };
 
 static NEXT_XML_DOM_DOCUMENT_ID: AtomicU64 = AtomicU64::new(1);
@@ -703,24 +703,27 @@ fn new_node_handle(
     path: XmlPath,
     generation: Option<u64>,
 ) -> Option<XmlDomNode> {
-    let (id, generation, structure_epoch) = if let Ok(mut document) = inner.try_borrow_mut() {
-        let local = node_local_id_at_path(&mut document, &path)?;
-        let id = XmlDomNodeId {
-            document: document.document_id,
-            local,
-        };
-        let generation = generation.unwrap_or(document.generation);
-        (id, generation, document.structure_epoch)
-    } else {
-        // XPath arena conversion can create handles while the document is immutably borrowed.
-        // Defer identity registration until the handle is first used, as sibling handles do.
-        let document = inner.borrow();
-        let id = XmlDomNodeId {
-            document: document.document_id,
-            local: u64::MAX,
-        };
-        let generation = generation.unwrap_or(document.generation);
-        (id, generation, document.structure_epoch)
+    let (id, generation, structure_epoch) = match inner.try_borrow_mut() {
+        Ok(mut document) => {
+            let local = node_local_id_at_path(&mut document, &path)?;
+            let id = XmlDomNodeId {
+                document: document.document_id,
+                local,
+            };
+            let generation = generation.unwrap_or(document.generation);
+            (id, generation, document.structure_epoch)
+        }
+        _ => {
+            // XPath arena conversion can create handles while the document is immutably borrowed.
+            // Defer identity registration until the handle is first used, as sibling handles do.
+            let document = inner.borrow();
+            let id = XmlDomNodeId {
+                document: document.document_id,
+                local: u64::MAX,
+            };
+            let generation = generation.unwrap_or(document.generation);
+            (id, generation, document.structure_epoch)
+        }
     };
     Some(XmlDomNode {
         inner: Rc::clone(inner),
@@ -3005,22 +3008,25 @@ impl XmlDomNode {
         ensure_overlay(&mut inner);
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
-                if let Some(id) = overlay_compact_node_at(compact, edits, &self.path.borrow()) {
-                    let kind = compact.node(id).ok_or(XmlDomError::InvalidTarget)?.kind();
-                    if !matches!(
-                        kind,
-                        XmlNodeKind::Element | XmlNodeKind::ProcessingInstruction
-                    ) {
-                        return Err(XmlDomError::InvalidTarget);
+                match overlay_compact_node_at(compact, edits, &self.path.borrow()) {
+                    Some(id) => {
+                        let kind = compact.node(id).ok_or(XmlDomError::InvalidTarget)?.kind();
+                        if !matches!(
+                            kind,
+                            XmlNodeKind::Element | XmlNodeKind::ProcessingInstruction
+                        ) {
+                            return Err(XmlDomError::InvalidTarget);
+                        }
+                        edits.names.insert(self.path.borrow().to_path(), name);
                     }
-                    edits.names.insert(self.path.borrow().to_path(), name);
-                } else {
-                    match overlay_materialized_node_mut(compact, edits, &self.path.borrow())
-                        .ok_or(XmlDomError::InvalidTarget)?
-                    {
-                        XmlNode::Element(element) => element.name = name,
-                        XmlNode::ProcessingInstruction(pi) => pi.target = name,
-                        _ => return Err(XmlDomError::InvalidTarget),
+                    _ => {
+                        match overlay_materialized_node_mut(compact, edits, &self.path.borrow())
+                            .ok_or(XmlDomError::InvalidTarget)?
+                        {
+                            XmlNode::Element(element) => element.name = name,
+                            XmlNode::ProcessingInstruction(pi) => pi.target = name,
+                            _ => return Err(XmlDomError::InvalidTarget),
+                        }
                     }
                 }
                 edits.mutations += 1;
@@ -3090,20 +3096,23 @@ impl XmlDomNode {
         ensure_overlay(&mut inner);
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
-                if let Some(id) = overlay_compact_node_at(compact, edits, &self.path.borrow()) {
-                    if compact
-                        .node(id)
-                        .is_none_or(|node| node.kind() == XmlNodeKind::Element)
-                    {
-                        return Err(XmlDomError::InvalidTarget);
+                match overlay_compact_node_at(compact, edits, &self.path.borrow()) {
+                    Some(id) => {
+                        if compact
+                            .node(id)
+                            .is_none_or(|node| node.kind() == XmlNodeKind::Element)
+                        {
+                            return Err(XmlDomError::InvalidTarget);
+                        }
+                        edits.values.insert(self.path.borrow().to_path(), value);
                     }
-                    edits.values.insert(self.path.borrow().to_path(), value);
-                } else {
-                    set_materialized_node_value(
-                        overlay_materialized_node_mut(compact, edits, &self.path.borrow())
-                            .ok_or(XmlDomError::InvalidTarget)?,
-                        value,
-                    )?;
+                    _ => {
+                        set_materialized_node_value(
+                            overlay_materialized_node_mut(compact, edits, &self.path.borrow())
+                                .ok_or(XmlDomError::InvalidTarget)?,
+                            value,
+                        )?;
+                    }
                 }
                 edits.mutations += 1;
             }
@@ -3652,39 +3661,44 @@ impl XmlDomNode {
         let index = match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
                 edits.mutations += 1;
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    let index = element.children.len();
-                    element
-                        .append_child(node)
-                        .expect("facade validated the appended node");
-                    index
-                } else if let Some(id) =
-                    overlay_compact_node_at(compact, edits, &self.path.borrow())
-                {
-                    if compact
-                        .node(id)
-                        .is_none_or(|node| node.kind() != XmlNodeKind::Element)
-                    {
-                        return Err(XmlDomError::NotElement);
-                    }
-                    if let Some(children) = edits.child_orders.get_mut(&self.path.borrow()) {
-                        let index = children.len();
-                        children.push(SparseChild::Materialized(node));
-                        index
-                    } else {
-                        let base = compact.children(id).count();
-                        let added = edits
-                            .appended
-                            .entry(self.path.borrow().to_path())
-                            .or_default();
-                        let index = base + added.len();
-                        added.push(node);
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        let index = element.children.len();
+                        element
+                            .append_child(node)
+                            .expect("facade validated the appended node");
                         index
                     }
-                } else {
-                    return Err(XmlDomError::NotElement);
+                    _ => match overlay_compact_node_at(compact, edits, &self.path.borrow()) {
+                        Some(id) => {
+                            if compact
+                                .node(id)
+                                .is_none_or(|node| node.kind() != XmlNodeKind::Element)
+                            {
+                                return Err(XmlDomError::NotElement);
+                            }
+                            match edits.child_orders.get_mut(&self.path.borrow()) {
+                                Some(children) => {
+                                    let index = children.len();
+                                    children.push(SparseChild::Materialized(node));
+                                    index
+                                }
+                                _ => {
+                                    let base = compact.children(id).count();
+                                    let added = edits
+                                        .appended
+                                        .entry(self.path.borrow().to_path())
+                                        .or_default();
+                                    let index = base + added.len();
+                                    added.push(node);
+                                    index
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(XmlDomError::NotElement);
+                        }
+                    },
                 }
             }
             XmlDomState::Compact(_) | XmlDomState::Transition => unreachable!(),
@@ -3720,48 +3734,59 @@ impl XmlDomNode {
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
                 let count = nodes.len();
-                let range = if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    let start = element.children.len();
-                    element.children.extend(nodes);
-                    start..start + count
-                } else if let Some(id) =
-                    overlay_compact_node_at(compact, edits, &self.path.borrow())
-                {
-                    if compact
-                        .node(id)
-                        .is_none_or(|node| node.kind() != XmlNodeKind::Element)
-                    {
-                        return Err(XmlDomError::NotElement);
-                    }
-                    if let Some(children) = edits.child_orders.get_mut(&self.path.borrow()) {
-                        let start = children.len();
-                        children.extend(nodes.into_iter().map(SparseChild::Materialized));
-                        start..start + count
-                    } else {
-                        let base = compact.children(id).count();
-                        let entry = edits.appended.entry(self.path.borrow().to_path());
-                        let start = base
-                            + match &entry {
-                                std::collections::hash_map::Entry::Occupied(entry) => {
-                                    entry.get().len()
-                                }
-                                std::collections::hash_map::Entry::Vacant(_) => 0,
-                            };
-                        match entry {
-                            std::collections::hash_map::Entry::Occupied(mut entry) => {
-                                entry.get_mut().extend(nodes);
-                            }
-                            std::collections::hash_map::Entry::Vacant(entry) => {
-                                entry.insert(nodes);
-                            }
+                let range =
+                    match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                        Some(element) => {
+                            let start = element.children.len();
+                            element.children.extend(nodes);
+                            start..start + count
                         }
-                        start..start + count
-                    }
-                } else {
-                    return Err(XmlDomError::NotElement);
-                };
+                        _ => match overlay_compact_node_at(compact, edits, &self.path.borrow()) {
+                            Some(id) => {
+                                if compact
+                                    .node(id)
+                                    .is_none_or(|node| node.kind() != XmlNodeKind::Element)
+                                {
+                                    return Err(XmlDomError::NotElement);
+                                }
+                                match edits.child_orders.get_mut(&self.path.borrow()) {
+                                    Some(children) => {
+                                        let start = children.len();
+                                        children.extend(
+                                            nodes.into_iter().map(SparseChild::Materialized),
+                                        );
+                                        start..start + count
+                                    }
+                                    _ => {
+                                        let base = compact.children(id).count();
+                                        let entry =
+                                            edits.appended.entry(self.path.borrow().to_path());
+                                        let start = base
+                                            + match &entry {
+                                                std::collections::hash_map::Entry::Occupied(
+                                                    entry,
+                                                ) => entry.get().len(),
+                                                std::collections::hash_map::Entry::Vacant(_) => 0,
+                                            };
+                                        match entry {
+                                            std::collections::hash_map::Entry::Occupied(
+                                                mut entry,
+                                            ) => {
+                                                entry.get_mut().extend(nodes);
+                                            }
+                                            std::collections::hash_map::Entry::Vacant(entry) => {
+                                                entry.insert(nodes);
+                                            }
+                                        }
+                                        start..start + count
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Err(XmlDomError::NotElement);
+                            }
+                        },
+                    };
                 edits.mutations += count;
                 Ok(range)
             }
@@ -3778,29 +3803,30 @@ impl XmlDomNode {
         ensure_overlay(&mut inner);
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    let old_len = element.children.len();
-                    element
-                        .prepend_child(node)
-                        .expect("facade validated the prepended node");
-                    let positions = insertion_positions(old_len, 0);
-                    rebase_overlay_paths(edits, &self.path.borrow(), &positions);
-                } else {
-                    ensure_child_order(compact, edits, &self.path.borrow())?;
-                    let old = compact_child_identity(&edits.child_orders[&self.path.borrow()]);
-                    edits
-                        .child_orders
-                        .get_mut(&self.path.borrow())
-                        .expect("child order was initialized")
-                        .insert(0, SparseChild::Materialized(node));
-                    rebase_after_child_order_change(
-                        edits,
-                        &self.path.borrow(),
-                        &old,
-                        &insertion_positions(old.len(), 0),
-                    );
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        let old_len = element.children.len();
+                        element
+                            .prepend_child(node)
+                            .expect("facade validated the prepended node");
+                        let positions = insertion_positions(old_len, 0);
+                        rebase_overlay_paths(edits, &self.path.borrow(), &positions);
+                    }
+                    _ => {
+                        ensure_child_order(compact, edits, &self.path.borrow())?;
+                        let old = compact_child_identity(&edits.child_orders[&self.path.borrow()]);
+                        edits
+                            .child_orders
+                            .get_mut(&self.path.borrow())
+                            .expect("child order was initialized")
+                            .insert(0, SparseChild::Materialized(node));
+                        rebase_after_child_order_change(
+                            edits,
+                            &self.path.borrow(),
+                            &old,
+                            &insertion_positions(old.len(), 0),
+                        );
+                    }
                 }
                 edits.mutations += 1;
             }
@@ -4201,37 +4227,44 @@ impl XmlDomNode {
         let index = match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
                 edits.mutations += 1;
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    let index = element.children.len();
-                    element.append_element_unchecked(name);
-                    index
-                } else if let Some(id) =
-                    overlay_compact_node_at(compact, edits, &self.path.borrow())
-                {
-                    if compact
-                        .node(id)
-                        .is_none_or(|node| node.kind() != XmlNodeKind::Element)
-                    {
-                        return Err(XmlDomError::NotElement);
-                    }
-                    if let Some(children) = edits.child_orders.get_mut(&self.path.borrow()) {
-                        let index = children.len();
-                        children.push(SparseChild::Materialized(XmlNode::element_unchecked(name)));
-                        index
-                    } else {
-                        let base = compact.children(id).count();
-                        let added = edits
-                            .appended
-                            .entry(self.path.borrow().to_path())
-                            .or_default();
-                        let index = base + added.len();
-                        added.push(XmlNode::element_unchecked(name));
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        let index = element.children.len();
+                        element.append_element_unchecked(name);
                         index
                     }
-                } else {
-                    return Err(XmlDomError::NotElement);
+                    _ => match overlay_compact_node_at(compact, edits, &self.path.borrow()) {
+                        Some(id) => {
+                            if compact
+                                .node(id)
+                                .is_none_or(|node| node.kind() != XmlNodeKind::Element)
+                            {
+                                return Err(XmlDomError::NotElement);
+                            }
+                            match edits.child_orders.get_mut(&self.path.borrow()) {
+                                Some(children) => {
+                                    let index = children.len();
+                                    children.push(SparseChild::Materialized(
+                                        XmlNode::element_unchecked(name),
+                                    ));
+                                    index
+                                }
+                                _ => {
+                                    let base = compact.children(id).count();
+                                    let added = edits
+                                        .appended
+                                        .entry(self.path.borrow().to_path())
+                                        .or_default();
+                                    let index = base + added.len();
+                                    added.push(XmlNode::element_unchecked(name));
+                                    index
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(XmlDomError::NotElement);
+                        }
+                    },
                 }
             }
             XmlDomState::Compact(_) | XmlDomState::Transition => unreachable!(),
@@ -4270,58 +4303,68 @@ impl XmlDomNode {
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
                 edits.mutations += 1;
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    element.set_attribute_unchecked(name, value);
-                } else if let Some(id) =
-                    overlay_compact_node_at(compact, edits, &self.path.borrow())
-                {
-                    let Some(record) = compact.node(id) else {
-                        return Err(XmlDomError::NotElement);
-                    };
-                    if record.kind() != XmlNodeKind::Element {
-                        return Err(XmlDomError::NotElement);
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        element.set_attribute_unchecked(name, value);
                     }
-                    if let Some(order) = edits.attribute_orders.get_mut(&self.path.borrow()) {
-                        if let Some(attribute) = order.iter_mut().find(|attribute| {
-                            sparse_attribute_name(compact, attribute) == Some(name.as_str())
-                        }) {
-                            match attribute {
-                                SparseAttribute::Compact(_) => {
-                                    edits
-                                        .attributes
-                                        .insert((self.path.borrow().to_path(), name), value);
-                                }
-                                SparseAttribute::Materialized(attribute) => attribute.value = value,
+                    _ => match overlay_compact_node_at(compact, edits, &self.path.borrow()) {
+                        Some(id) => {
+                            let Some(record) = compact.node(id) else {
+                                return Err(XmlDomError::NotElement);
+                            };
+                            if record.kind() != XmlNodeKind::Element {
+                                return Err(XmlDomError::NotElement);
                             }
-                        } else {
-                            order.push(SparseAttribute::Materialized(
-                                crate::XmlAttribute::new_unchecked(name, value),
-                            ));
+                            match edits.attribute_orders.get_mut(&self.path.borrow()) {
+                                Some(order) => {
+                                    if let Some(attribute) = order.iter_mut().find(|attribute| {
+                                        sparse_attribute_name(compact, attribute)
+                                            == Some(name.as_str())
+                                    }) {
+                                        match attribute {
+                                            SparseAttribute::Compact(_) => {
+                                                edits.attributes.insert(
+                                                    (self.path.borrow().to_path(), name),
+                                                    value,
+                                                );
+                                            }
+                                            SparseAttribute::Materialized(attribute) => {
+                                                attribute.value = value
+                                            }
+                                        }
+                                    } else {
+                                        order.push(SparseAttribute::Materialized(
+                                            crate::XmlAttribute::new_unchecked(name, value),
+                                        ));
+                                    }
+                                }
+                                _ => {
+                                    if record.attribute_range().any(|index| {
+                                        compact.attribute_name(index) == Some(name.as_str())
+                                    }) || edits
+                                        .attributes
+                                        .contains_key(&(self.path.borrow().to_path(), name.clone()))
+                                    {
+                                        edits
+                                            .attributes
+                                            .insert((self.path.borrow().to_path(), name), value);
+                                    } else {
+                                        edits
+                                            .added_attribute_order
+                                            .entry(self.path.borrow().to_path())
+                                            .or_default()
+                                            .push(name.clone());
+                                        edits
+                                            .attributes
+                                            .insert((self.path.borrow().to_path(), name), value);
+                                    }
+                                }
+                            }
                         }
-                    } else if record
-                        .attribute_range()
-                        .any(|index| compact.attribute_name(index) == Some(name.as_str()))
-                        || edits
-                            .attributes
-                            .contains_key(&(self.path.borrow().to_path(), name.clone()))
-                    {
-                        edits
-                            .attributes
-                            .insert((self.path.borrow().to_path(), name), value);
-                    } else {
-                        edits
-                            .added_attribute_order
-                            .entry(self.path.borrow().to_path())
-                            .or_default()
-                            .push(name.clone());
-                        edits
-                            .attributes
-                            .insert((self.path.borrow().to_path(), name), value);
-                    }
-                } else {
-                    return Err(XmlDomError::NotElement);
+                        _ => {
+                            return Err(XmlDomError::NotElement);
+                        }
+                    },
                 }
             }
             XmlDomState::Compact(_) | XmlDomState::Transition => unreachable!(),
@@ -4391,35 +4434,36 @@ impl XmlDomNode {
         ensure_overlay(&mut inner);
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    let Some(index) = element
-                        .attributes
-                        .iter()
-                        .position(|attribute| attribute.name == old_name)
-                    else {
-                        return Ok(false);
-                    };
-                    element.attributes[index] = crate::XmlAttribute::new_unchecked(new_name, value);
-                } else {
-                    ensure_attribute_order(compact, edits, &self.path.borrow())?;
-                    let Some(index) =
-                        edits.attribute_orders[&self.path.borrow()]
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        let Some(index) = element
+                            .attributes
+                            .iter()
+                            .position(|attribute| attribute.name == old_name)
+                        else {
+                            return Ok(false);
+                        };
+                        element.attributes[index] =
+                            crate::XmlAttribute::new_unchecked(new_name, value);
+                    }
+                    _ => {
+                        ensure_attribute_order(compact, edits, &self.path.borrow())?;
+                        let Some(index) = edits.attribute_orders[&self.path.borrow()]
                             .iter()
                             .position(|attribute| {
                                 sparse_attribute_name(compact, attribute) == Some(old_name)
                             })
-                    else {
-                        return Ok(false);
-                    };
-                    edits
-                        .attributes
-                        .remove(&(self.path.borrow().to_path(), old_name.to_owned()));
-                    edits.attribute_orders.get_mut(&self.path.borrow()).unwrap()[index] =
-                        SparseAttribute::Materialized(crate::XmlAttribute::new_unchecked(
-                            new_name, value,
-                        ));
+                        else {
+                            return Ok(false);
+                        };
+                        edits
+                            .attributes
+                            .remove(&(self.path.borrow().to_path(), old_name.to_owned()));
+                        edits.attribute_orders.get_mut(&self.path.borrow()).unwrap()[index] =
+                            SparseAttribute::Materialized(crate::XmlAttribute::new_unchecked(
+                                new_name, value,
+                            ));
+                    }
                 }
                 edits.mutations += 1;
                 Ok(true)
@@ -4437,28 +4481,28 @@ impl XmlDomNode {
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
                 let removed =
-                    if let Some(element) =
-                        overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                    {
-                        element.remove_attribute(name).is_some()
-                    } else {
-                        ensure_attribute_order(compact, edits, &self.path.borrow())?;
-                        let Some(index) =
-                            edits.attribute_orders[&self.path.borrow()].iter().position(
-                                |attribute| sparse_attribute_name(compact, attribute) == Some(name),
-                            )
-                        else {
-                            return Ok(false);
-                        };
-                        edits
-                            .attribute_orders
-                            .get_mut(&self.path.borrow())
-                            .unwrap()
-                            .remove(index);
-                        edits
-                            .attributes
-                            .remove(&(self.path.borrow().to_path(), name.to_owned()));
-                        true
+                    match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                        Some(element) => element.remove_attribute(name).is_some(),
+                        _ => {
+                            ensure_attribute_order(compact, edits, &self.path.borrow())?;
+                            let Some(index) = edits.attribute_orders[&self.path.borrow()]
+                                .iter()
+                                .position(|attribute| {
+                                    sparse_attribute_name(compact, attribute) == Some(name)
+                                })
+                            else {
+                                return Ok(false);
+                            };
+                            edits
+                                .attribute_orders
+                                .get_mut(&self.path.borrow())
+                                .unwrap()
+                                .remove(index);
+                            edits
+                                .attributes
+                                .remove(&(self.path.borrow().to_path(), name.to_owned()));
+                            true
+                        }
                     };
                 edits.mutations += usize::from(removed);
                 Ok(removed)
@@ -4514,21 +4558,22 @@ impl XmlDomNode {
         ensure_overlay(&mut inner);
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    element.clear_attributes();
-                } else {
-                    ensure_attribute_order(compact, edits, &self.path.borrow())?;
-                    edits
-                        .attribute_orders
-                        .get_mut(&self.path.borrow())
-                        .unwrap()
-                        .clear();
-                    edits
-                        .attributes
-                        .retain(|(path, _), _| path.indexes() != self.path.borrow().indexes());
-                    edits.added_attribute_order.remove(&self.path.borrow());
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        element.clear_attributes();
+                    }
+                    _ => {
+                        ensure_attribute_order(compact, edits, &self.path.borrow())?;
+                        edits
+                            .attribute_orders
+                            .get_mut(&self.path.borrow())
+                            .unwrap()
+                            .clear();
+                        edits
+                            .attributes
+                            .retain(|(path, _), _| path.indexes() != self.path.borrow().indexes());
+                        edits.added_attribute_order.remove(&self.path.borrow());
+                    }
                 }
                 edits.mutations += 1;
             }
@@ -4548,60 +4593,72 @@ impl XmlDomNode {
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
                 edits.mutations += 1;
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    let old_len = element.children.len();
-                    let inserts_text = element.text().is_none();
-                    element.set_text_unchecked(value);
-                    if inserts_text {
-                        let positions = insertion_positions(old_len, 0);
-                        rebase_overlay_paths(edits, &self.path.borrow(), &positions);
-                        let generation = bump_structure_epoch(&mut inner);
-                        self.structure_epoch.set(generation);
-                    }
-                } else if let Some(id) =
-                    overlay_compact_node_at(compact, edits, &self.path.borrow())
-                {
-                    if compact
-                        .node(id)
-                        .is_none_or(|node| node.kind() != XmlNodeKind::Element)
-                    {
-                        return Err(XmlDomError::NotElement);
-                    }
-                    if let Some(index) =
-                        first_overlay_text_child(compact, edits, id, &self.path.borrow())
-                    {
-                        let child_path = self.path.borrow().child(index);
-                        if overlay_compact_node_at(compact, edits, &child_path).is_some() {
-                            edits.values.insert(child_path, value);
-                        } else {
-                            set_materialized_node_value(
-                                overlay_materialized_node_mut(compact, edits, &child_path)
-                                    .ok_or(XmlDomError::InvalidTarget)?,
-                                value,
-                            )?;
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        let old_len = element.children.len();
+                        let inserts_text = element.text().is_none();
+                        element.set_text_unchecked(value);
+                        if inserts_text {
+                            let positions = insertion_positions(old_len, 0);
+                            rebase_overlay_paths(edits, &self.path.borrow(), &positions);
+                            let generation = bump_structure_epoch(&mut inner);
+                            self.structure_epoch.set(generation);
                         }
-                    } else {
-                        ensure_child_order(compact, edits, &self.path.borrow())?;
-                        let old = compact_child_identity(&edits.child_orders[&self.path.borrow()]);
-                        edits
-                            .child_orders
-                            .get_mut(&self.path.borrow())
-                            .expect("child order was initialized")
-                            .insert(0, SparseChild::Materialized(XmlNode::Text(value)));
-                        rebase_after_child_order_change(
-                            edits,
-                            &self.path.borrow(),
-                            &old,
-                            &insertion_positions(old.len(), 0),
-                        );
-                        let generation = bump_structure_epoch(&mut inner);
-                        self.structure_epoch.set(generation);
-                        return Ok(());
                     }
-                } else {
-                    return Err(XmlDomError::NotElement);
+                    _ => match overlay_compact_node_at(compact, edits, &self.path.borrow()) {
+                        Some(id) => {
+                            if compact
+                                .node(id)
+                                .is_none_or(|node| node.kind() != XmlNodeKind::Element)
+                            {
+                                return Err(XmlDomError::NotElement);
+                            }
+                            match first_overlay_text_child(compact, edits, id, &self.path.borrow())
+                            {
+                                Some(index) => {
+                                    let child_path = self.path.borrow().child(index);
+                                    if overlay_compact_node_at(compact, edits, &child_path)
+                                        .is_some()
+                                    {
+                                        edits.values.insert(child_path, value);
+                                    } else {
+                                        set_materialized_node_value(
+                                            overlay_materialized_node_mut(
+                                                compact,
+                                                edits,
+                                                &child_path,
+                                            )
+                                            .ok_or(XmlDomError::InvalidTarget)?,
+                                            value,
+                                        )?;
+                                    }
+                                }
+                                _ => {
+                                    ensure_child_order(compact, edits, &self.path.borrow())?;
+                                    let old = compact_child_identity(
+                                        &edits.child_orders[&self.path.borrow()],
+                                    );
+                                    edits
+                                        .child_orders
+                                        .get_mut(&self.path.borrow())
+                                        .expect("child order was initialized")
+                                        .insert(0, SparseChild::Materialized(XmlNode::Text(value)));
+                                    rebase_after_child_order_change(
+                                        edits,
+                                        &self.path.borrow(),
+                                        &old,
+                                        &insertion_positions(old.len(), 0),
+                                    );
+                                    let generation = bump_structure_epoch(&mut inner);
+                                    self.structure_epoch.set(generation);
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(XmlDomError::NotElement);
+                        }
+                    },
                 }
             }
             XmlDomState::Compact(_) | XmlDomState::Transition => unreachable!(),
@@ -4721,25 +4778,26 @@ impl XmlDomNode {
         ensure_overlay(&mut inner);
         match &mut inner.state {
             XmlDomState::Overlay { compact, edits } => {
-                if let Some(element) =
-                    overlay_materialized_element_mut(compact, edits, &self.path.borrow())
-                {
-                    element.clear_children();
-                    rebase_overlay_paths(edits, &self.path.borrow(), &HashMap::new());
-                } else {
-                    ensure_child_order(compact, edits, &self.path.borrow())?;
-                    let old = compact_child_identity(&edits.child_orders[&self.path.borrow()]);
-                    edits
-                        .child_orders
-                        .get_mut(&self.path.borrow())
-                        .expect("child order was initialized")
-                        .clear();
-                    rebase_after_child_order_change(
-                        edits,
-                        &self.path.borrow(),
-                        &old,
-                        &HashMap::new(),
-                    );
+                match overlay_materialized_element_mut(compact, edits, &self.path.borrow()) {
+                    Some(element) => {
+                        element.clear_children();
+                        rebase_overlay_paths(edits, &self.path.borrow(), &HashMap::new());
+                    }
+                    _ => {
+                        ensure_child_order(compact, edits, &self.path.borrow())?;
+                        let old = compact_child_identity(&edits.child_orders[&self.path.borrow()]);
+                        edits
+                            .child_orders
+                            .get_mut(&self.path.borrow())
+                            .expect("child order was initialized")
+                            .clear();
+                        rebase_after_child_order_change(
+                            edits,
+                            &self.path.borrow(),
+                            &old,
+                            &HashMap::new(),
+                        );
+                    }
                 }
                 edits.mutations += 1;
             }
@@ -4838,26 +4896,27 @@ impl XmlDomNode {
     }
 
     fn sibling_handle(&self, path: XmlPath) -> Self {
-        let (id, generation, structure_epoch) = if let Ok(mut inner) = self.inner.try_borrow_mut() {
-            let local = node_local_id_at_path(&mut inner, &path)
-                .expect("sibling handle path resolves to a logical node");
-            (
-                XmlDomNodeId {
-                    document: inner.document_id,
-                    local,
-                },
-                inner.generation,
-                inner.structure_epoch,
-            )
-        } else {
-            (
+        let (id, generation, structure_epoch) = match self.inner.try_borrow_mut() {
+            Ok(mut inner) => {
+                let local = node_local_id_at_path(&mut inner, &path)
+                    .expect("sibling handle path resolves to a logical node");
+                (
+                    XmlDomNodeId {
+                        document: inner.document_id,
+                        local,
+                    },
+                    inner.generation,
+                    inner.structure_epoch,
+                )
+            }
+            _ => (
                 XmlDomNodeId {
                     document: self.id.get().document,
                     local: u64::MAX,
                 },
                 self.generation.get(),
                 self.structure_epoch.get(),
-            )
+            ),
         };
         Self {
             inner: Rc::clone(&self.inner),
@@ -5844,7 +5903,7 @@ fn collect_compact_attributes(
                         .is_some_and(|order| order.contains(name))
             })
             .collect();
-        added.sort_unstable_by(|left, right| left.0 .1.cmp(&right.0 .1));
+        added.sort_unstable_by(|left, right| left.0.1.cmp(&right.0.1));
         output.extend(
             added
                 .into_iter()
@@ -6714,7 +6773,7 @@ fn materialize_compact_element(
                         .is_some_and(|order| order.contains(name))
             })
             .collect();
-        added.sort_unstable_by(|left, right| left.0 .1.cmp(&right.0 .1));
+        added.sort_unstable_by(|left, right| left.0.1.cmp(&right.0.1));
         for ((_, name), value) in added {
             element
                 .attributes
@@ -7076,8 +7135,8 @@ mod tests {
     use std::{collections::HashSet, fmt, mem::size_of};
 
     use super::{
-        next_document_id, CompactTopologyEntry, IdentityCache, SparseChild, SparseOverlay, XmlDom,
-        XmlDomError, XmlDomNode, XmlDomNodeSet, XmlDomNodeSetStorage, XmlDomPath, XmlDomState,
+        CompactTopologyEntry, IdentityCache, SparseChild, SparseOverlay, XmlDom, XmlDomError,
+        XmlDomNode, XmlDomNodeSet, XmlDomNodeSetStorage, XmlDomPath, XmlDomState, next_document_id,
     };
     use crate::{
         XPathContext, XPathExpression, XPathVariables, XmlCompactNode, XmlNode, XmlOutputEncoding,
@@ -7632,13 +7691,15 @@ mod tests {
         let first = root.append_copy(&original).unwrap();
         first.set_name("first-copy").unwrap();
         assert!(first.source_position().unwrap().is_none());
-        assert!(first
-            .child("x")
-            .unwrap()
-            .unwrap()
-            .source_position()
-            .unwrap()
-            .is_none());
+        assert!(
+            first
+                .child("x")
+                .unwrap()
+                .unwrap()
+                .source_position()
+                .unwrap()
+                .is_none()
+        );
         let second = root.append_copy(&original).unwrap();
         second.set_name("second-copy").unwrap();
 
@@ -7651,22 +7712,26 @@ mod tests {
             document.to_xml_string().unwrap(),
             "<r><!--head-->\n<a><x/></a><b/>\n<first-copy><x/></first-copy><second-copy><x/></second-copy></r>"
         );
-        assert!(document
-            .root()
-            .child("first-copy")
-            .unwrap()
-            .unwrap()
-            .source_position()
-            .unwrap()
-            .is_none());
-        assert!(document
-            .root()
-            .child("second-copy")
-            .unwrap()
-            .unwrap()
-            .source_position()
-            .unwrap()
-            .is_none());
+        assert!(
+            document
+                .root()
+                .child("first-copy")
+                .unwrap()
+                .unwrap()
+                .source_position()
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            document
+                .root()
+                .child("second-copy")
+                .unwrap()
+                .unwrap()
+                .source_position()
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -7707,12 +7772,13 @@ mod tests {
         let item = root.child("item").unwrap().unwrap();
         let position = item.source_position().unwrap().unwrap();
         assert_eq!((position.line, position.column), (2, 4));
-        assert!(root
-            .append_element("new")
-            .unwrap()
-            .source_position()
-            .unwrap()
-            .is_none());
+        assert!(
+            root.append_element("new")
+                .unwrap()
+                .source_position()
+                .unwrap()
+                .is_none()
+        );
         assert!(matches!(
             &document.inner.borrow().state,
             XmlDomState::Overlay { .. }
@@ -8228,12 +8294,14 @@ mod tests {
                 .unwrap(),
             2.0
         );
-        assert!(document
-            .evaluate_xpath_boolean_with_context(
-                &XPathExpression::compile("/r/group/s:item[@score='5']").unwrap(),
-                &context,
-            )
-            .unwrap());
+        assert!(
+            document
+                .evaluate_xpath_boolean_with_context(
+                    &XPathExpression::compile("/r/group/s:item[@score='5']").unwrap(),
+                    &context,
+                )
+                .unwrap()
+        );
         assert_eq!(
             document
                 .evaluate_xpath_string_with_context(
@@ -8277,10 +8345,12 @@ mod tests {
                 .len(),
             1
         );
-        assert!(document
-            .select_nodes_with_context(&right_key, &context)
-            .unwrap()
-            .is_empty());
+        assert!(
+            document
+                .select_nodes_with_context(&right_key, &context)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             document
                 .select_nodes_with_context(&plain, &context)
@@ -8340,10 +8410,12 @@ mod tests {
             Some("1")
         );
 
-        assert!(document
-            .select_nodes_with_context(&left_key, &context)
-            .unwrap()
-            .is_empty());
+        assert!(
+            document
+                .select_nodes_with_context(&left_key, &context)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             document
                 .select_nodes_with_context(&right_key, &context)
@@ -8380,10 +8452,12 @@ mod tests {
         right.set_attribute("xmlns:p", "urn:right2").unwrap();
         context.namespaces.bind("right2", "urn:right2").unwrap();
         let right2_key = XPathExpression::compile("//@right2:key").unwrap();
-        assert!(document
-            .select_nodes_with_context(&right_key, &context)
-            .unwrap()
-            .is_empty());
+        assert!(
+            document
+                .select_nodes_with_context(&right_key, &context)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             document
                 .select_nodes_with_context(&right2_key, &context)
@@ -8410,10 +8484,12 @@ mod tests {
                 .len(),
             1
         );
-        assert!(reparsed
-            .select_nodes_with_context(&right_key, &context)
-            .unwrap()
-            .is_empty());
+        assert!(
+            reparsed
+                .select_nodes_with_context(&right_key, &context)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             reparsed
                 .select_nodes_with_context(&right2_key, &context)

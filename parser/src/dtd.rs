@@ -4,8 +4,8 @@ use crate::{
     error::{XmlError, XmlErrorKind, XmlResult},
     parser::skip_xml_whitespace_bytes,
     syntax::{
-        is_name_char, is_name_start_char, is_pubid_char, is_space, is_xml11_char,
-        is_xml11_literal_char, is_xml_char, is_xml_target,
+        is_name_char, is_name_start_char, is_pubid_char, is_space, is_xml_char, is_xml_target,
+        is_xml11_char, is_xml11_literal_char,
     },
 };
 

@@ -255,7 +255,7 @@ fn decode_utf16(bytes: &[u8], skip: usize, endian: Endian) -> XmlResult<String> 
                 return Err(XmlError::new(
                     XmlErrorKind::InvalidCharacter,
                     skip + index * 2,
-                ))
+                ));
             }
         }
     }
@@ -284,7 +284,7 @@ fn decode_utf32(bytes: &[u8], skip: usize, endian: Endian) -> XmlResult<String> 
                 return Err(XmlError::new(
                     XmlErrorKind::InvalidCharacter,
                     skip + index * 4,
-                ))
+                ));
             }
         }
     }
@@ -444,7 +444,7 @@ fn encoding_from_label(label: &str) -> XmlResult<XmlInputEncoding> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{count_document_bytes, XmlDom, XmlTreeStats};
+    use crate::{XmlDom, XmlTreeStats, count_document_bytes};
     use std::{fs, path::Path};
 
     #[test]

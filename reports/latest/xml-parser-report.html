@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>benchmaxxed XML walk vs pugixml minimal walk vs quick-xml event walk vs Bun XML.parse ordered walk vs PHP libxml2 compact walk vs Python libxml2 compact walk</title>
+<title>pugixml minimal walk vs quick-xml event walk vs Bun XML.parse ordered walk vs benchmaxxed XML walk vs PHP libxml2 compact walk vs Python libxml2 compact walk</title>
 <style>
 :root {
   --paper: #f2e8d2;
@@ -20,7 +20,6 @@
   --bench: #20ba74;
   --gold: #efb342;
   --violet: #8b5cf6;
-  --coral: #e76f51;
 }
 * { box-sizing: border-box; }
 body {
@@ -53,7 +52,6 @@ main { width: min(1080px, calc(100vw - 24px)); margin: 0 auto; padding: 12px 0 1
 .swatch.php { background: var(--php); }
 .swatch.gold { background: var(--gold); }
 .swatch.violet { background: var(--violet); }
-.swatch.coral { background: var(--coral); }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .card.wide { grid-column: 1 / -1; }
 .card {
@@ -125,7 +123,6 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; l
 .bar.php { background: var(--php); }
 .bar.gold { background: var(--gold); }
 .bar.violet { background: var(--violet); }
-.bar.coral { background: var(--coral); }
 .bar-label {
   position: absolute;
   left: 50%;
@@ -174,38 +171,38 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; l
 </head>
 <body>
 <main>
-<div class="legend" aria-label="Legend"><span><i class="swatch bench"></i>benchmaxxed XML walk</span><span><i class="swatch gold"></i>pugixml minimal walk</span><span><i class="swatch serde"></i>quick-xml event walk</span><span><i class="swatch violet"></i>Bun XML.parse ordered walk</span><span><i class="swatch php"></i>PHP libxml2 compact walk</span><span><i class="swatch coral"></i>Python libxml2 compact walk</span></div>
+<div class="legend" aria-label="Legend"><span><i class="swatch gold"></i>pugixml minimal walk</span><span><i class="swatch serde"></i>quick-xml event walk</span><span><i class="swatch violet"></i>Bun XML.parse ordered walk</span><span><i class="swatch bench"></i>benchmaxxed XML walk</span><span><i class="swatch php"></i>PHP libxml2 compact walk</span><span><i class="swatch gold"></i>Python libxml2 compact walk</span></div>
 <section class="charts">
 <article class="card wide" aria-label="Throughput chart">
 <div class="card-head">
 <h2><span class="icon">⚡</span> Throughput</h2>
 <span class="hint">MB/sec · higher better</span></div>
 <div class="plot">
-<div class="yaxis"><span>1.72k</span><span>1.29k</span><span>861</span><span>431</span><span>0.0</span></div>
+<div class="yaxis"><span>1.60k</span><span>1.20k</span><span>798</span><span>399</span><span>0.0</span></div>
 <div class="plot-area">
 <div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:96.2%"><span class="bar-label">1.66k</span></div>
-<div class="bar gold" style="height:57.2%"><span class="bar-label">985</span></div>
-<div class="bar serde" style="height:36.4%"><span class="bar-label">626</span></div>
-<div class="bar violet" style="height:8.4%"><span class="bar-label">145</span></div>
-<div class="bar php" style="height:6.6%"><span class="bar-label">114</span></div>
-<div class="bar coral" style="height:3.5%"><span class="bar-label">60.9</span></div>
+<div class="bar gold" style="height:61.0%"><span class="bar-label">974</span></div>
+<div class="bar serde" style="height:47.9%"><span class="bar-label">765</span></div>
+<div class="bar violet" style="height:8.6%"><span class="bar-label">138</span></div>
+<div class="bar bench" style="height:96.2%"><span class="bar-label">1.54k</span></div>
+<div class="bar php" style="height:6.8%"><span class="bar-label">109</span></div>
+<div class="bar gold" style="height:3.7%"><span class="bar-label">59.3</span></div>
 </div>
 <div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:66.9%"><span class="bar-label">1.15k</span></div>
-<div class="bar gold" style="height:43.6%"><span class="bar-label">751</span></div>
-<div class="bar serde" style="height:30.4%"><span class="bar-label">523</span></div>
-<div class="bar violet" style="height:8.4%"><span class="bar-label">145</span></div>
-<div class="bar php" style="height:4.8%"><span class="bar-label">83.5</span></div>
-<div class="bar coral" style="height:2.9%"><span class="bar-label">49.6</span></div>
+<div class="bar gold" style="height:46.6%"><span class="bar-label">744</span></div>
+<div class="bar serde" style="height:36.7%"><span class="bar-label">586</span></div>
+<div class="bar violet" style="height:9.1%"><span class="bar-label">145</span></div>
+<div class="bar bench" style="height:69.2%"><span class="bar-label">1.11k</span></div>
+<div class="bar php" style="height:5.8%"><span class="bar-label">92.2</span></div>
+<div class="bar gold" style="height:3.1%"><span class="bar-label">49.6</span></div>
 </div>
 <div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:86.3%"><span class="bar-label">1.49k</span></div>
-<div class="bar gold" style="height:52.3%"><span class="bar-label">900</span></div>
-<div class="bar serde" style="height:32.7%"><span class="bar-label">564</span></div>
-<div class="bar violet" style="height:7.4%"><span class="bar-label">128</span></div>
-<div class="bar php" style="height:5.0%"><span class="bar-label">86.2</span></div>
-<div class="bar coral" style="height:3.2%"><span class="bar-label">54.6</span></div>
+<div class="bar gold" style="height:54.0%"><span class="bar-label">862</span></div>
+<div class="bar serde" style="height:40.6%"><span class="bar-label">649</span></div>
+<div class="bar violet" style="height:8.0%"><span class="bar-label">128</span></div>
+<div class="bar bench" style="height:88.3%"><span class="bar-label">1.41k</span></div>
+<div class="bar php" style="height:5.4%"><span class="bar-label">86.3</span></div>
+<div class="bar gold" style="height:3.5%"><span class="bar-label">55.1</span></div>
 </div>
 </div>
 <div class="xlabels"><span>CANADA</span><span>TWITTER</span><span>CITM</span></div>
@@ -214,31 +211,31 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; l
 <h2><span class="icon">⏱</span> Best Time</h2>
 <span class="hint">microseconds · lower better</span></div>
 <div class="plot">
-<div class="yaxis"><span>350.39k</span><span>262.80k</span><span>175.20k</span><span>87.60k</span><span>0</span></div>
+<div class="yaxis"><span>359.92k</span><span>269.94k</span><span>179.96k</span><span>89.98k</span><span>0</span></div>
 <div class="plot-area">
 <div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:3.5%"><span class="bar-label">12.39k</span></div>
-<div class="bar gold" style="height:6.0%"><span class="bar-label">20.85k</span></div>
-<div class="bar serde" style="height:9.4%"><span class="bar-label">32.78k</span></div>
-<div class="bar violet" style="height:40.4%"><span class="bar-label">141.44k</span></div>
-<div class="bar php" style="height:51.5%"><span class="bar-label">180.34k</span></div>
-<div class="bar coral" style="height:96.2%"><span class="bar-label">336.92k</span></div>
+<div class="bar gold" style="height:5.9%"><span class="bar-label">21.08k</span></div>
+<div class="bar serde" style="height:7.5%"><span class="bar-label">26.84k</span></div>
+<div class="bar violet" style="height:41.3%"><span class="bar-label">148.76k</span></div>
+<div class="bar bench" style="height:3.7%"><span class="bar-label">13.37k</span></div>
+<div class="bar php" style="height:52.4%"><span class="bar-label">188.44k</span></div>
+<div class="bar gold" style="height:96.2%"><span class="bar-label">346.07k</span></div>
 </div>
 <div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:1.0%"><span class="bar-label">1.42k</span></div>
-<div class="bar gold" style="height:1.0%"><span class="bar-label">2.18k</span></div>
-<div class="bar serde" style="height:1.0%"><span class="bar-label">3.13k</span></div>
-<div class="bar violet" style="height:3.2%"><span class="bar-label">11.27k</span></div>
-<div class="bar php" style="height:5.6%"><span class="bar-label">19.63k</span></div>
-<div class="bar coral" style="height:9.4%"><span class="bar-label">33.02k</span></div>
+<div class="bar gold" style="height:1.0%"><span class="bar-label">2.20k</span></div>
+<div class="bar serde" style="height:1.0%"><span class="bar-label">2.80k</span></div>
+<div class="bar violet" style="height:3.1%"><span class="bar-label">11.33k</span></div>
+<div class="bar bench" style="height:1.0%"><span class="bar-label">1.48k</span></div>
+<div class="bar php" style="height:4.9%"><span class="bar-label">17.77k</span></div>
+<div class="bar gold" style="height:9.2%"><span class="bar-label">33.05k</span></div>
 </div>
 <div class="group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:1.0%"><span class="bar-label">3.14k</span></div>
-<div class="bar gold" style="height:1.5%"><span class="bar-label">5.19k</span></div>
-<div class="bar serde" style="height:2.4%"><span class="bar-label">8.29k</span></div>
-<div class="bar violet" style="height:10.4%"><span class="bar-label">36.47k</span></div>
-<div class="bar php" style="height:15.5%"><span class="bar-label">54.18k</span></div>
-<div class="bar coral" style="height:24.4%"><span class="bar-label">85.57k</span></div>
+<div class="bar gold" style="height:1.5%"><span class="bar-label">5.42k</span></div>
+<div class="bar serde" style="height:2.0%"><span class="bar-label">7.20k</span></div>
+<div class="bar violet" style="height:10.2%"><span class="bar-label">36.57k</span></div>
+<div class="bar bench" style="height:1.0%"><span class="bar-label">3.31k</span></div>
+<div class="bar php" style="height:15.0%"><span class="bar-label">54.16k</span></div>
+<div class="bar gold" style="height:23.6%"><span class="bar-label">84.78k</span></div>
 </div>
 </div>
 <div class="xlabels"><span>CANADA</span><span>TWITTER</span><span>CITM</span></div>
@@ -247,15 +244,15 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; l
 <h2><span class="icon">▣</span> CPU</h2>
 <span class="hint">whole benchmark command</span></div>
 <div class="plot single">
-<div class="yaxis"><span>136</span><span>102</span><span>68.0</span><span>34.0</span><span>0.0</span></div>
+<div class="yaxis"><span>134</span><span>100</span><span>67.0</span><span>33.5</span><span>0.0</span></div>
 <div class="plot-area">
 <div class="group metric-group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:72.8%"><span class="bar-label">99.0%</span></div>
-<div class="bar gold" style="height:72.8%"><span class="bar-label">99.0%</span></div>
-<div class="bar serde" style="height:72.8%"><span class="bar-label">99.0%</span></div>
-<div class="bar violet" style="height:92.6%"><span class="bar-label">126%</span></div>
-<div class="bar php" style="height:72.8%"><span class="bar-label">99.0%</span></div>
-<div class="bar coral" style="height:72.8%"><span class="bar-label">99.0%</span></div>
+<div class="bar gold" style="height:73.9%"><span class="bar-label">99.0%</span></div>
+<div class="bar serde" style="height:73.9%"><span class="bar-label">99.0%</span></div>
+<div class="bar violet" style="height:92.6%"><span class="bar-label">124%</span></div>
+<div class="bar bench" style="height:73.9%"><span class="bar-label">99.0%</span></div>
+<div class="bar php" style="height:73.9%"><span class="bar-label">99.0%</span></div>
+<div class="bar gold" style="height:73.9%"><span class="bar-label">99.0%</span></div>
 </div></div>
 <div class="xlabels"><span>CANADA + TWITTER + CITM</span></div>
 </div></article><article class="card dark" aria-label="RSS chart">
@@ -263,19 +260,19 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; l
 <h2><span class="icon">▥</span> RSS</h2>
 <span class="hint">MB · lower better</span></div>
 <div class="plot single">
-<div class="yaxis"><span>1.17k</span><span>880</span><span>586</span><span>293</span><span>0.0</span></div>
+<div class="yaxis"><span>1.23k</span><span>922</span><span>615</span><span>307</span><span>0.0</span></div>
 <div class="plot-area">
 <div class="group metric-group" style="grid-template-columns: repeat(6, minmax(11px, 30px));">
-<div class="bar bench" style="height:2.9%"><span class="bar-label">34.6</span></div>
-<div class="bar gold" style="height:4.3%"><span class="bar-label">49.9</span></div>
-<div class="bar serde" style="height:1.9%"><span class="bar-label">22.5</span></div>
-<div class="bar violet" style="height:92.6%"><span class="bar-label">1.09k</span></div>
-<div class="bar php" style="height:11.5%"><span class="bar-label">135</span></div>
-<div class="bar coral" style="height:11.4%"><span class="bar-label">133</span></div>
+<div class="bar gold" style="height:4.1%"><span class="bar-label">49.9</span></div>
+<div class="bar serde" style="height:1.8%"><span class="bar-label">22.5</span></div>
+<div class="bar violet" style="height:92.6%"><span class="bar-label">1.14k</span></div>
+<div class="bar bench" style="height:2.8%"><span class="bar-label">34.6</span></div>
+<div class="bar php" style="height:11.0%"><span class="bar-label">135</span></div>
+<div class="bar gold" style="height:10.8%"><span class="bar-label">133</span></div>
 </div></div>
 <div class="xlabels"><span>CANADA + TWITTER + CITM</span></div>
 </div></article></section>
-<p class="note">System: Ubuntu · AMD Ryzen 5 5600X 6-Core Processor · 31 GiB RAM · CPU/RSS measured with /usr/bin/time -v over separate full three-file parser-only benchmark commands. XML throughput includes parse + complete walk; Benchmaxxed uses its trusted compact view; pugixml uses minimal mode; quick-xml uses borrowed events; Bun uses XML.parse({ compact: false }); PHP uses libxml2 through FFI in compact mode; Python uses libxml2 through ctypes in compact mode.</p>
+<p class="note">System: Ubuntu · AMD Ryzen 5 5600X 6-Core Processor · 31 GiB RAM · CPU/RSS measured with /usr/bin/time -v over separate full three-file parser-only benchmark commands. XML throughput includes parse + complete walk; Bun uses XML.parse({ compact: false }), benchmaxxed uses its trusted compact view, pugixml uses minimal mode, and quick-xml uses borrowed events.</p>
 </main>
 </body>
 </html>

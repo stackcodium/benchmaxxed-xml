@@ -2,12 +2,12 @@
 
 ## Linux x86_64
 
-- Full six-parser performance run on `x86_64`: Benchmaxxed XML, pugixml, quick-xml, Bun XML,
-  PHP libxml2, and Python libxml2.
-- Bun runtime: `1.4.0-canary.1+1dd66afde` (`1dd66afde213732c645c60ac08cf68f1087a271d`).
-- PHP runtime: `8.5.9`; Python runtime: `3.13.14`.
+- Full six-parser performance run captured at `2026-08-22T11:19:31.021703+00:00` on `x86_64`:
+  Benchmaxxed XML, pugixml, quick-xml, Bun XML, PHP/libxml2, and Python/libxml2.
+- Bun runtime: `1.4.0+34cbb9a40` (`34cbb9a40b4bd1bd767d134a7065e66c2432a676`).
+- PHP runtime: `8.5.9`; Python runtime: `Python 3.13.14`.
 - All implementations produced the same semantic node counts for all three datasets.
-- Parser source: `7e3d7f924bd94d6aefb49d63f8fa81eb09e4021b` from a clean checkout.
+- Parser source: `05b21ed3c7d2c9630e2cb2bd77d6999160cced31` from a clean checkout.
 
 ## Linux aarch64
 
@@ -25,8 +25,8 @@
   over the compact pugixml reference for the measured targets.
 
 The ARM evidence is a separate native comparison against pugixml. The included six-parser HTML
-report is the x86_64 run described by `reports/latest/environment.json`; it does not claim Bun,
-quick-xml, PHP, or Python validation on ARM.
+report is the x86_64 run described by `reports/latest/environment.json`; it does not claim Bun or
+quick-xml validation on ARM.
 
 ## Publication gate
 

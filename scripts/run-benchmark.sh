@@ -17,9 +17,7 @@ QUICKXML_DIR="$ROOT_DIR/references/quick-xml"
 PUGIXML_DIR="$ROOT_DIR/references/pugixml"
 QUICKXML_REVISION="4deda08abeffdc188c269360229cf47e12a77a9f"
 PUGIXML_REVISION="27b68329de32cf9c601ca8eb6c588fd639960c40"
-BUN_VERSION="1.4.0-canary.1+1dd66afde"
-PHP_VERSION="8.5.9"
-PYTHON_VERSION="3.13.14"
+BUN_VERSION="1.4.0+34cbb9a40"
 PARSERS="${PARSERS:-benchmaxxed,pugixml,quickxml,bun,php,python}"
 
 fail() { echo "error: $*" >&2; exit 1; }
@@ -49,22 +47,12 @@ if selected bun; then
   fi
 fi
 if selected php; then
-  [[ -n "$PHP_BIN" && -x "$PHP_BIN" ]] || fail "PHP is required; expected version $PHP_VERSION"
-  ACTUAL_PHP_VERSION="$($PHP_BIN -r 'echo PHP_VERSION;')"
-  if [[ "$ACTUAL_PHP_VERSION" != "$PHP_VERSION" && "${ALLOW_VERSION_MISMATCH:-0}" != "1" ]]; then
-    fail "PHP version mismatch: expected $PHP_VERSION, found $ACTUAL_PHP_VERSION"
-  fi
+  [[ -n "$PHP_BIN" && -x "$PHP_BIN" ]] || fail "PHP is required for the php adapter"
   "$PHP_BIN" -d ffi.enable=true -r 'FFI::cdef("int xmlCheckVersion(int version);", "libxml2.so.2");' \
     || fail "PHP FFI and libxml2.so.2 are required"
 fi
 if selected python; then
-  [[ -n "$PYTHON_BIN" && -x "$PYTHON_BIN" ]] || fail "Python is required; expected version $PYTHON_VERSION"
-  ACTUAL_PYTHON_VERSION="$($PYTHON_BIN -c 'import platform; print(platform.python_version())')"
-  if [[ "$ACTUAL_PYTHON_VERSION" != "$PYTHON_VERSION" && "${ALLOW_VERSION_MISMATCH:-0}" != "1" ]]; then
-    fail "Python version mismatch: expected $PYTHON_VERSION, found $ACTUAL_PYTHON_VERSION"
-  fi
-  "$PYTHON_BIN" -c 'import ctypes; ctypes.CDLL("libxml2.so.2")' \
-    || fail "Python ctypes and libxml2.so.2 are required"
+  [[ -n "$PYTHON_BIN" && -x "$PYTHON_BIN" ]] || fail "Python is required for the python adapter"
 fi
 
 FILES=(

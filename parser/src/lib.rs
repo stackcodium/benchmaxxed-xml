@@ -32,30 +32,29 @@ pub use dom_facade::{
     XmlDomOutputError, XmlDomScanAttribute, XmlDomScanAttributes, XmlDomScanNode, XmlDomSend,
     XmlDomWalk, XmlDomXPathNode, XmlSourceCoordinates, XmlSourcePosition,
 };
-pub use encoding::{decode_xml_bytes, DecodedXml, XmlInputEncoding};
+pub use encoding::{DecodedXml, XmlInputEncoding, decode_xml_bytes};
 pub use error::{XmlError, XmlErrorKind, XmlResult};
 pub use fragment::{
-    parse_fragment, parse_fragment_tolerant, parse_fragment_tolerant_with_config,
-    parse_fragment_with_config, XmlFragment,
+    XmlFragment, parse_fragment, parse_fragment_tolerant, parse_fragment_tolerant_with_config,
+    parse_fragment_with_config,
 };
 pub use io::XmlLoadError;
 pub use mutation::XmlMutationError;
 pub use namespace::{
-    XmlExpandedName, XmlNamespace, XmlNamespaceError, XmlQualifiedName, XMLNS_NAMESPACE_URI,
-    XML_NAMESPACE_URI,
+    XML_NAMESPACE_URI, XMLNS_NAMESPACE_URI, XmlExpandedName, XmlNamespace, XmlNamespaceError,
+    XmlQualifiedName,
 };
 pub use parser::{
-    count_document, count_document_bytes, count_document_bytes_with_config,
-    count_document_with_config, parse_compact_document, parse_compact_document_bytes,
-    parse_compact_document_bytes_tolerant, parse_compact_document_bytes_tolerant_with_config,
-    parse_compact_document_bytes_with_config, parse_compact_document_tolerant,
-    parse_compact_document_tolerant_with_config, parse_compact_document_with_config,
-    parse_document_view, parse_document_view_with_config,
+    ParserConfig, XmlAttributeWhitespacePolicy, XmlEntityExpansionPolicy, XmlExternalEntityPolicy,
+    XmlParseOutcome, XmlParser, XmlTextWhitespacePolicy, XmlVersion, count_document,
+    count_document_bytes, count_document_bytes_with_config, count_document_with_config,
+    parse_compact_document, parse_compact_document_bytes, parse_compact_document_bytes_tolerant,
+    parse_compact_document_bytes_tolerant_with_config, parse_compact_document_bytes_with_config,
+    parse_compact_document_tolerant, parse_compact_document_tolerant_with_config,
+    parse_compact_document_with_config, parse_document_view, parse_document_view_with_config,
     parse_document_view_with_config_and_source_offsets, parse_document_view_with_source_offsets,
     validate_document, validate_document_bytes, validate_document_bytes_with_config,
-    validate_document_with_config, ParserConfig, XmlAttributeWhitespacePolicy,
-    XmlEntityExpansionPolicy, XmlExternalEntityPolicy, XmlParseOutcome, XmlParser,
-    XmlTextWhitespacePolicy, XmlVersion,
+    validate_document_with_config,
 };
 pub use serialize::{
     XmlDeclarationMode, XmlEscapeMode, XmlOutputEncoding, XmlQuoteStyle, XmlSerializeOptions,

@@ -1,8 +1,8 @@
 [package]
 name = "xml-parser"
-version = "0.1.0"
-edition = "2021"
-rust-version = "1.82"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.85"
 license = "MIT"
 description = "Dependency-free safe-Rust XML parsing, compact DOM, mutable DOM, and XPath"
 readme = "README.md"
